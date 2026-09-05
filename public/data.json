@@ -1,0 +1,3556 @@
+{
+  "metrics": {
+    "total_transactions": 61,
+    "total_at_risk": 1145679,
+    "total_recovered": 782585,
+    "recovery_rate_pct": 68.3,
+    "count_recovered": 42,
+    "count_escalated": 4,
+    "count_unrecoverable": 1,
+    "count_execution_failed": 1,
+    "count_ptp_active": 1,
+    "count_unsettled": 12,
+    "vector_breakdown": [
+      {
+        "vector": "checkout_abandonment",
+        "label": "Checkout Drop-off",
+        "total_count": 16,
+        "recovered_count": 15,
+        "amount_at_risk": 154988,
+        "amount_recovered": 141989,
+        "recovery_rate_pct": 91.6
+      },
+      {
+        "vector": "payment_failure",
+        "label": "Payment Degradation",
+        "total_count": 29,
+        "recovered_count": 19,
+        "amount_at_risk": 355200,
+        "amount_recovered": 224600,
+        "recovery_rate_pct": 63.2
+      },
+      {
+        "vector": "b2b_receivables",
+        "label": "B2B Receivables & Invoices",
+        "total_count": 6,
+        "recovered_count": 4,
+        "amount_at_risk": 547000,
+        "amount_recovered": 384000,
+        "recovery_rate_pct": 70.2
+      },
+      {
+        "vector": "subscription_failure",
+        "label": "Failed Subscriptions",
+        "total_count": 9,
+        "recovered_count": 4,
+        "amount_at_risk": 76491,
+        "amount_recovered": 31996,
+        "recovery_rate_pct": 41.8
+      },
+      {
+        "vector": "fraud_risk",
+        "label": "Risk & Velocity Anomaly",
+        "total_count": 1,
+        "recovered_count": 0,
+        "amount_at_risk": 12000,
+        "amount_recovered": 0,
+        "recovery_rate_pct": 0.0
+      }
+    ],
+    "ruleset": [
+      {
+        "rule_id": "R-STOP-MAX-RETRY",
+        "condition": "retry_count_so_far >= 2 and vector != 'b2b_receivables'",
+        "allowed_action": "escalate_to_human_review",
+        "human_readable_reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.",
+        "stopping_rule": "TERMINAL: Auto-retry execution halted; dossier forwarded to Merchant Ops queue."
+      },
+      {
+        "rule_id": "R-STOP-HARD-DECLINE",
+        "condition": "failure_type == 'issuer_decline_hard'",
+        "allowed_action": "do_not_retry_flag_unrecoverable",
+        "human_readable_reason": "Compliance stopping rule: Card reported lost, stolen, or blocked by issuer. Visa/Mastercard network mandates zero automated re-attempts.",
+        "stopping_rule": "TERMINAL: Card fingerprint permanently suppressed from recovery pipeline."
+      },
+      {
+        "rule_id": "R-FRAUD-VELOCITY",
+        "condition": "failure_type == 'duplicate_suspicious_pattern'",
+        "allowed_action": "escalate_to_human_review",
+        "human_readable_reason": "Risk mitigation rule: High-frequency velocity anomaly (>3 rapid failures) detected across single fingerprint. Potential card testing bot.",
+        "stopping_rule": "HALTED: Immediate quarantine; bypasses automated recovery to protect chargeback ratio."
+      },
+      {
+        "rule_id": "R-NET-IMMEDIATE",
+        "condition": "failure_type == 'network_timeout' and retry_count_so_far < 2",
+        "allowed_action": "auto_retry_now",
+        "human_readable_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+        "stopping_rule": "Max 1 immediate retry; abort if unacknowledged."
+      },
+      {
+        "rule_id": "R-SOFT-DELAY-1H",
+        "condition": "failure_type == 'issuer_decline_soft' and retry_count_so_far < 2",
+        "allowed_action": "auto_retry_delayed_1hr",
+        "human_readable_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+        "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2."
+      },
+      {
+        "rule_id": "R-FUNDS-DELAY-24H",
+        "condition": "failure_type == 'insufficient_funds' and retry_count_so_far < 1",
+        "allowed_action": "auto_retry_delayed_24hr",
+        "human_readable_reason": "Insufficient balance at debit. Schedule 24-hour delayed retry window to align with daily salary/account reload cycles.",
+        "stopping_rule": "Single delayed window only; escalate if balance remains insufficient."
+      },
+      {
+        "rule_id": "R-ABANDON-NUDGE",
+        "condition": "failure_type == 'checkout_abandoned_fresh'",
+        "allowed_action": "send_hinglish_nudge_with_discount",
+        "human_readable_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+        "stopping_rule": "Single nudge policy; no follow-up spam allowed."
+      },
+      {
+        "rule_id": "R-ABANDON-STANDARD",
+        "condition": "failure_type == 'checkout_abandoned_aged'",
+        "allowed_action": "send_recovery_link_standard",
+        "human_readable_reason": "Checkout drop over 48 hours old. Dispatch standard Razorpay payment link preserving cart items without urgency wording.",
+        "stopping_rule": "Standard link lifetime 7 days."
+      },
+      {
+        "rule_id": "R-MANDATE-RENEW",
+        "condition": "failure_type == 'upi_mandate_expired'",
+        "allowed_action": "send_mandate_renewal_link",
+        "human_readable_reason": "UPI AutoPay mandate token lapsed. Issue Razorpay mandate re-auth link via WhatsApp/SMS to refresh mandate token in 1 click.",
+        "stopping_rule": "Link expires in 72h; fallback to invoice cancellation if unfulfilled."
+      },
+      {
+        "rule_id": "R-CARD-TOKEN-REAUTH",
+        "condition": "failure_type == 'card_recurring_token_revoked'",
+        "allowed_action": "send_card_reauth_link",
+        "human_readable_reason": "RBI CoF recurring card token desynced. Send \u20b92 verification re-auth link to establish fresh tokenization under RBI guidelines.",
+        "stopping_rule": "Link lifetime 48 hours."
+      },
+      {
+        "rule_id": "R-B2B-PTP-PAUSE",
+        "condition": "failure_type == 'invoice_overdue_60d_ptp_active' or ptp_status == 'active'",
+        "allowed_action": "pause_recovery_ptp_active",
+        "human_readable_reason": "Compliance rule: Debtor has active verified Promise-to-Pay commitment. System strictly pauses automated dunning to honor agreement.",
+        "stopping_rule": "PAUSED: Automatic dunning suppressed until commitment date passes."
+      },
+      {
+        "rule_id": "R-B2B-CHASER-30D",
+        "condition": "failure_type == 'invoice_overdue_30d'",
+        "allowed_action": "send_b2b_receivables_chaser",
+        "human_readable_reason": "Net-30 invoice overdue. Dispatch multi-channel receivables notice with 1-click Razorpay payment link and Promise-to-Pay capture portal.",
+        "stopping_rule": "Dunning cycle 1 of 3."
+      },
+      {
+        "rule_id": "R-B2B-LEGAL-ESCALATE",
+        "condition": "failure_type == 'invoice_overdue_90d_default'",
+        "allowed_action": "escalate_to_finance_collections",
+        "human_readable_reason": "Chronic delinquency (>60 days past due). Dunning sequence exhausted; escalated to Commercial Collections & Finance Legal Ops.",
+        "stopping_rule": "TERMINAL: Automated actions halted; legal collections initiated."
+      }
+    ]
+  },
+  "records": [
+    {
+      "transaction_id": "txn_2026_001",
+      "amount": 18500,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 08:40:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 16.1,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Urban Company",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 1665000,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_001 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Urban Company",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_001",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_001",
+        "status": "paid",
+        "amount_paid": 18500,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Urban Company ji! \ud83d\ude4f Aapka \u20b918,500 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_001 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b918,500 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 18500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_002",
+      "amount": 3800,
+      "failure_type": "insufficient_funds",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 08:46:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Authorization Balance Deficit",
+      "diagnosis_detail": "Issuer declined due to lack of funds (Error 51). Retriable after 24h salary / account replenishment.",
+      "confidence": "high",
+      "rule_id": "R-FUNDS-DELAY-24H",
+      "policy_action": "auto_retry_delayed_24hr",
+      "policy_reason": "Insufficient balance at debit. Schedule 24-hour delayed retry window to align with daily salary/account reload cycles.",
+      "stopping_rule": "Single delayed window only; escalate if balance remains insufficient.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_002/retry",
+        "payload": {
+          "amount": 380000,
+          "currency": "INR",
+          "schedule": "delayed_24hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_002_966",
+        "entity": "payment",
+        "amount": 380000,
+        "currency": "INR",
+        "status": "failed",
+        "method": "card",
+        "captured": false,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_002: Status auto_retry_delayed_24hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_003",
+      "amount": 68000,
+      "failure_type": "invoice_overdue_30d",
+      "vector": "b2b_receivables",
+      "vector_label": "B2B Receivables & Invoices",
+      "timestamp": "2026-09-05 08:52:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 0,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "B2B Net-30 Grace Period Expiration",
+      "diagnosis_detail": "Commercial invoice unpaid 15-30 days past due. Dispatches automated receivables reminder with PTP options.",
+      "confidence": "high",
+      "rule_id": "R-B2B-CHASER-30D",
+      "policy_action": "send_b2b_receivables_chaser",
+      "policy_reason": "Net-30 invoice overdue. Dispatch multi-channel receivables notice with 1-click Razorpay payment link and Promise-to-Pay capture portal.",
+      "stopping_rule": "Dunning cycle 1 of 3.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/invoices/txn_2026_003/chase",
+        "payload": {
+          "amount": 6800000,
+          "dunning_cycle": 1,
+          "ptp_portal_enabled": true
+        }
+      },
+      "simulated_response": {
+        "id": "inv_sim_26_003",
+        "entity": "b2b_invoice",
+        "short_url": "https://rzp.io/inv/26_003",
+        "status": "paid",
+        "amount_settled": 68000,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Email + Commercial WhatsApp",
+        "language": "Professional English + Hindi Assist",
+        "whatsapp_copy": "Dear Zepto Depot Accounts Team, Invoice #txn_2026_003 for \u20b968,000 is currently 30 days overdue. Please settle via instant Razorpay B2B portal: https://rzp.io/inv/26_003 or reply with your Promise-to-Pay (PTP) date.",
+        "voice_script": "Hello, this is Razorpay Automated Accounts Receivables calling for Zepto Depot. Your invoice txn_2026_003 of \u20b968,000 is due. Press 1 to pay via link, press 2 to record a Promise to Pay date.",
+        "ivr_intent": "b2b_ptp_negotiation"
+      },
+      "recovered": true,
+      "recovered_amount": 68000,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_004",
+      "amount": 18500,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 09:00:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Nykaa Merchant",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_004/retry",
+        "payload": {
+          "amount": 1850000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_004_949",
+        "entity": "payment",
+        "amount": 1850000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_004: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 18500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_005",
+      "amount": 6200,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 09:06:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Flipkart Seller",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_005/retry",
+        "payload": {
+          "amount": 620000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_005_103",
+        "entity": "payment",
+        "amount": 620000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_005: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 6200,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_006",
+      "amount": 6200,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 09:16:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_006/retry",
+        "payload": {
+          "amount": 620000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_006_233",
+        "entity": "payment",
+        "amount": 620000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_006: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 6200,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_007",
+      "amount": 180000,
+      "failure_type": "invoice_overdue_30d",
+      "vector": "b2b_receivables",
+      "vector_label": "B2B Receivables & Invoices",
+      "timestamp": "2026-09-05 09:21:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 0,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Nykaa Merchant",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "B2B Net-30 Grace Period Expiration",
+      "diagnosis_detail": "Commercial invoice unpaid 15-30 days past due. Dispatches automated receivables reminder with PTP options.",
+      "confidence": "high",
+      "rule_id": "R-B2B-CHASER-30D",
+      "policy_action": "send_b2b_receivables_chaser",
+      "policy_reason": "Net-30 invoice overdue. Dispatch multi-channel receivables notice with 1-click Razorpay payment link and Promise-to-Pay capture portal.",
+      "stopping_rule": "Dunning cycle 1 of 3.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/invoices/txn_2026_007/chase",
+        "payload": {
+          "amount": 18000000,
+          "dunning_cycle": 1,
+          "ptp_portal_enabled": true
+        }
+      },
+      "simulated_response": {
+        "id": "inv_sim_26_007",
+        "entity": "b2b_invoice",
+        "short_url": "https://rzp.io/inv/26_007",
+        "status": "paid",
+        "amount_settled": 180000,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Email + Commercial WhatsApp",
+        "language": "Professional English + Hindi Assist",
+        "whatsapp_copy": "Dear Nykaa Merchant Accounts Team, Invoice #txn_2026_007 for \u20b9180,000 is currently 30 days overdue. Please settle via instant Razorpay B2B portal: https://rzp.io/inv/26_007 or reply with your Promise-to-Pay (PTP) date.",
+        "voice_script": "Hello, this is Razorpay Automated Accounts Receivables calling for Nykaa Merchant. Your invoice txn_2026_007 of \u20b9180,000 is due. Press 1 to pay via link, press 2 to record a Promise to Pay date.",
+        "ivr_intent": "b2b_ptp_negotiation"
+      },
+      "recovered": true,
+      "recovered_amount": 180000,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_008",
+      "amount": 4200,
+      "failure_type": "issuer_decline_hard",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 09:29:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Terminal Card Restriction / Fraud Blacklist",
+      "diagnosis_detail": "Card reported lost/stolen, KYC blocked, or canceled. Retries strictly prohibited by card networks.",
+      "confidence": "high",
+      "rule_id": "R-STOP-HARD-DECLINE",
+      "policy_action": "do_not_retry_flag_unrecoverable",
+      "policy_reason": "Compliance stopping rule: Card reported lost, stolen, or blocked by issuer. Visa/Mastercard network mandates zero automated re-attempts.",
+      "stopping_rule": "TERMINAL: Card fingerprint permanently suppressed from recovery pipeline.",
+      "execution_status": "unrecoverable",
+      "status_badge": "Unrecoverable",
+      "simulated_request": {
+        "system_channel": "risk_engine",
+        "action": "suppress_retries",
+        "payload": {
+          "transaction_id": "txn_2026_008",
+          "category": "hard_decline_block"
+        }
+      },
+      "simulated_response": {
+        "suppression_id": "sup_26_008",
+        "status": "permanently_halted",
+        "network_compliance": "visa_mastercard_mandate_enforced",
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_008: Status do_not_retry_flag_unrecoverable.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Permanent stop applied. Retries suppressed to avoid merchant scheme penalties."
+    },
+    {
+      "transaction_id": "txn_2026_009",
+      "amount": 3999,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 09:38:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 5.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Nykaa Merchant",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 359910,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_009 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Nykaa Merchant",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_009",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_009",
+        "status": "paid",
+        "amount_paid": 3999,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Nykaa Merchant ji! \ud83d\ude4f Aapka \u20b93,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_009 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b93,999 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 3999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_010",
+      "amount": 18500,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 09:44:00",
+      "retry_count_so_far": 1,
+      "recent_failure_count": 2,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Flipkart Seller",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_010/retry",
+        "payload": {
+          "amount": 1850000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_010_664",
+        "entity": "payment",
+        "amount": 1850000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_010: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 18500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_011",
+      "amount": 6200,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 09:52:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_011/retry",
+        "payload": {
+          "amount": 620000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_011_674",
+        "entity": "payment",
+        "amount": 620000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_011: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 6200,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_012",
+      "amount": 18500,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 09:59:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 8.6,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 1665000,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_012 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Zepto Depot",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_012",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_012",
+        "status": "paid",
+        "amount_paid": 18500,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Zepto Depot ji! \ud83d\ude4f Aapka \u20b918,500 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_012 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b918,500 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 18500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_013",
+      "amount": 5499,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 10:03:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 18.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Swiggy Instamart",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 494910,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_013 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Swiggy Instamart",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_013",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_013",
+        "status": "paid",
+        "amount_paid": 5499,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Swiggy Instamart ji! \ud83d\ude4f Aapka \u20b95,499 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_013 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b95,499 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 5499,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_014",
+      "amount": 1999,
+      "failure_type": "upi_mandate_expired",
+      "vector": "subscription_failure",
+      "vector_label": "Failed Subscriptions",
+      "timestamp": "2026-09-05 10:10:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Flipkart Seller",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "UPI AutoPay Mandate Token Expired",
+      "diagnosis_detail": "Pre-debit notification rejected by NPCI due to expired UMN mandate token. Needs 1-click re-auth link.",
+      "confidence": "high",
+      "rule_id": "R-MANDATE-RENEW",
+      "policy_action": "send_mandate_renewal_link",
+      "policy_reason": "UPI AutoPay mandate token lapsed. Issue Razorpay mandate re-auth link via WhatsApp/SMS to refresh mandate token in 1 click.",
+      "stopping_rule": "Link expires in 72h; fallback to invoice cancellation if unfulfilled.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/subscriptions/mandate_auth",
+        "payload": {
+          "customer_id": "cust__014",
+          "amount": 199900,
+          "auth_type": "upi_autopay"
+        }
+      },
+      "simulated_response": {
+        "id": "mandate_sim_26_014",
+        "entity": "subscription_mandate",
+        "short_url": "https://rzp.io/m/rec_26_014",
+        "status": "issued",
+        "mandate_token": null,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + SMS",
+        "language": "Hinglish / English",
+        "whatsapp_copy": "Alert: Aapka recurring subscription payment (\u20b91,999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_014",
+        "voice_script": "Namaste Flipkart Seller. Aapka subscription auto-debit expire ho gaya hai. Kripya hamare WhatsApp message par diye gaye link par jakar UPI AutoPay dobara verify karein.",
+        "ivr_intent": "subscription_mandate_reauth"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_015",
+      "amount": 12999,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 10:19:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 11.3,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "execution_failed",
+      "status_badge": "Execution Failed",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_015/retry",
+        "payload": {
+          "gateway_route": "secondary_hdfc",
+          "notes": {
+            "agent": "recovery_agent"
+          }
+        }
+      },
+      "simulated_response": {
+        "error": {
+          "code": "GATEWAY_TIMEOUT",
+          "description": "504 Gateway Timeout: Bank switch ACK dropped after 30000ms. Ambiguous authorization state.",
+          "source": "gateway",
+          "step": "payment_retry",
+          "reason": "upstream_partner_timeout"
+        },
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Zepto Depot ji! \ud83d\ude4f Aapka \u20b912,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_015 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b912,999 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Caught 504 Gateway Timeout. Policy stopping rule strictly enforced: blind re-attempts suppressed to prevent duplicate customer debits. Quarantined for async reconciliation."
+    },
+    {
+      "transaction_id": "txn_2026_016",
+      "amount": 8999,
+      "failure_type": "upi_mandate_expired",
+      "vector": "subscription_failure",
+      "vector_label": "Failed Subscriptions",
+      "timestamp": "2026-09-05 10:27:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Reliance Retail",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "UPI AutoPay Mandate Token Expired",
+      "diagnosis_detail": "Pre-debit notification rejected by NPCI due to expired UMN mandate token. Needs 1-click re-auth link.",
+      "confidence": "high",
+      "rule_id": "R-MANDATE-RENEW",
+      "policy_action": "send_mandate_renewal_link",
+      "policy_reason": "UPI AutoPay mandate token lapsed. Issue Razorpay mandate re-auth link via WhatsApp/SMS to refresh mandate token in 1 click.",
+      "stopping_rule": "Link expires in 72h; fallback to invoice cancellation if unfulfilled.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/subscriptions/mandate_auth",
+        "payload": {
+          "customer_id": "cust__016",
+          "amount": 899900,
+          "auth_type": "upi_autopay"
+        }
+      },
+      "simulated_response": {
+        "id": "mandate_sim_26_016",
+        "entity": "subscription_mandate",
+        "short_url": "https://rzp.io/m/rec_26_016",
+        "status": "issued",
+        "mandate_token": null,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + SMS",
+        "language": "Hinglish / English",
+        "whatsapp_copy": "Alert: Aapka recurring subscription payment (\u20b98,999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_016",
+        "voice_script": "Namaste Reliance Retail. Aapka subscription auto-debit expire ho gaya hai. Kripya hamare WhatsApp message par diye gaye link par jakar UPI AutoPay dobara verify karein.",
+        "ivr_intent": "subscription_mandate_reauth"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_017",
+      "amount": 3800,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 10:32:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zomato Partner",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_017/retry",
+        "payload": {
+          "amount": 380000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_017_954",
+        "entity": "payment",
+        "amount": 380000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_017: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 3800,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_018",
+      "amount": 18500,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 10:40:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Reliance Retail",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_018/retry",
+        "payload": {
+          "amount": 1850000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_018_665",
+        "entity": "payment",
+        "amount": 1850000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_018: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 18500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_019",
+      "amount": 4999,
+      "failure_type": "card_recurring_token_revoked",
+      "vector": "subscription_failure",
+      "vector_label": "Failed Subscriptions",
+      "timestamp": "2026-09-05 10:48:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zomato Partner",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "Recurring Card Tokenization Desync",
+      "diagnosis_detail": "RBI CoF token expired or card replaced. Customer must re-authenticate card with \u20b92 verification debit.",
+      "confidence": "high",
+      "rule_id": "R-CARD-TOKEN-REAUTH",
+      "policy_action": "send_card_reauth_link",
+      "policy_reason": "RBI CoF recurring card token desynced. Send \u20b92 verification re-auth link to establish fresh tokenization under RBI guidelines.",
+      "stopping_rule": "Link lifetime 48 hours.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/tokens/card/reauth",
+        "payload": {
+          "customer_id": "cust__019",
+          "auth_amount": 200,
+          "currency": "INR"
+        }
+      },
+      "simulated_response": {
+        "id": "tok_sim_26_019",
+        "entity": "card_token",
+        "status": "active",
+        "rbi_compliance": "tokenized_consent_verified",
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_019: Status send_card_reauth_link.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 4999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_020",
+      "amount": 11500,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 10:52:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Nykaa Merchant",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_020/retry",
+        "payload": {
+          "amount": 1150000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_020_415",
+        "entity": "payment",
+        "amount": 1150000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_020: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 11500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_021",
+      "amount": 18500,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 11:02:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 17.2,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Reliance Retail",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 1665000,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_021 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Reliance Retail",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_021",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_021",
+        "status": "paid",
+        "amount_paid": 18500,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Reliance Retail ji! \ud83d\ude4f Aapka \u20b918,500 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_021 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b918,500 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 18500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_022",
+      "amount": 11500,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 11:05:00",
+      "retry_count_so_far": 1,
+      "recent_failure_count": 2,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zomato Partner",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_022/retry",
+        "payload": {
+          "amount": 1150000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_022_981",
+        "entity": "payment",
+        "amount": 1150000,
+        "currency": "INR",
+        "status": "failed",
+        "method": "card",
+        "captured": false,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_022: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_023",
+      "amount": 7999,
+      "failure_type": "checkout_abandoned_aged",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 11:13:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 55.3,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zomato Partner",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Dormant Checkout Drop-off (>48 Hours)",
+      "diagnosis_detail": "Cart abandoned over 48 hours ago. Intent degraded; standard payment link dispatch without urgency.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-STANDARD",
+      "policy_action": "send_recovery_link_standard",
+      "policy_reason": "Checkout drop over 48 hours old. Dispatch standard Razorpay payment link preserving cart items without urgency wording.",
+      "stopping_rule": "Standard link lifetime 7 days.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 799900,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_023",
+          "customer": {
+            "name": "Zomato Partner",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_023",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_023",
+        "status": "paid",
+        "amount_paid": 7999,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_023: Status send_recovery_link_standard.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 7999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_024",
+      "amount": 18500,
+      "failure_type": "insufficient_funds",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 11:23:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Flipkart Seller",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Authorization Balance Deficit",
+      "diagnosis_detail": "Issuer declined due to lack of funds (Error 51). Retriable after 24h salary / account replenishment.",
+      "confidence": "high",
+      "rule_id": "R-FUNDS-DELAY-24H",
+      "policy_action": "auto_retry_delayed_24hr",
+      "policy_reason": "Insufficient balance at debit. Schedule 24-hour delayed retry window to align with daily salary/account reload cycles.",
+      "stopping_rule": "Single delayed window only; escalate if balance remains insufficient.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_024/retry",
+        "payload": {
+          "amount": 1850000,
+          "currency": "INR",
+          "schedule": "delayed_24hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_024_798",
+        "entity": "payment",
+        "amount": 1850000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_024: Status auto_retry_delayed_24hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 18500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_025",
+      "amount": 12999,
+      "failure_type": "checkout_abandoned_aged",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 11:27:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 70.8,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Dormant Checkout Drop-off (>48 Hours)",
+      "diagnosis_detail": "Cart abandoned over 48 hours ago. Intent degraded; standard payment link dispatch without urgency.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-STANDARD",
+      "policy_action": "send_recovery_link_standard",
+      "policy_reason": "Checkout drop over 48 hours old. Dispatch standard Razorpay payment link preserving cart items without urgency wording.",
+      "stopping_rule": "Standard link lifetime 7 days.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 1299900,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_025",
+          "customer": {
+            "name": "Lenskart VIP",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_025",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_025",
+        "status": "paid",
+        "amount_paid": 12999,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_025: Status send_recovery_link_standard.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 12999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_026",
+      "amount": 24500,
+      "failure_type": "insufficient_funds",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 11:34:00",
+      "retry_count_so_far": 1,
+      "recent_failure_count": 2,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Urban Company",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "Authorization Balance Deficit",
+      "diagnosis_detail": "Issuer declined due to lack of funds (Error 51). Retriable after 24h salary / account replenishment.",
+      "confidence": "high",
+      "rule_id": "R-STOP-MAX-RETRY",
+      "policy_action": "escalate_to_human_review",
+      "policy_reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.",
+      "stopping_rule": "TERMINAL: Auto-retry execution halted; dossier forwarded to Merchant Ops queue.",
+      "execution_status": "escalated",
+      "status_badge": "Escalated",
+      "simulated_request": {
+        "system_channel": "merchant_ops_queue",
+        "action": "open_recovery_dossier",
+        "payload": {
+          "transaction_id": "txn_2026_026",
+          "amount_inr": 24500,
+          "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+        }
+      },
+      "simulated_response": {
+        "ticket_id": "esc_26_026",
+        "queue": "merchant_ops_priority",
+        "status": "assigned_specialist",
+        "sla_hours": 2,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_026: Status escalate_to_human_review.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Halted automated processing per policy stopping boundary. Human specialist intervention initiated."
+    },
+    {
+      "transaction_id": "txn_2026_027",
+      "amount": 11500,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 11:42:00",
+      "retry_count_so_far": 1,
+      "recent_failure_count": 2,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Swiggy Instamart",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_027/retry",
+        "payload": {
+          "amount": 1150000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_027_898",
+        "entity": "payment",
+        "amount": 1150000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_027: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 11500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_028",
+      "amount": 8999,
+      "failure_type": "upi_mandate_expired",
+      "vector": "subscription_failure",
+      "vector_label": "Failed Subscriptions",
+      "timestamp": "2026-09-05 11:48:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Urban Company",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "UPI AutoPay Mandate Token Expired",
+      "diagnosis_detail": "Pre-debit notification rejected by NPCI due to expired UMN mandate token. Needs 1-click re-auth link.",
+      "confidence": "high",
+      "rule_id": "R-MANDATE-RENEW",
+      "policy_action": "send_mandate_renewal_link",
+      "policy_reason": "UPI AutoPay mandate token lapsed. Issue Razorpay mandate re-auth link via WhatsApp/SMS to refresh mandate token in 1 click.",
+      "stopping_rule": "Link expires in 72h; fallback to invoice cancellation if unfulfilled.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/subscriptions/mandate_auth",
+        "payload": {
+          "customer_id": "cust__028",
+          "amount": 899900,
+          "auth_type": "upi_autopay"
+        }
+      },
+      "simulated_response": {
+        "id": "mandate_sim_26_028",
+        "entity": "subscription_mandate",
+        "short_url": "https://rzp.io/m/rec_26_028",
+        "status": "authenticated",
+        "mandate_token": "tok_upi_7658",
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + SMS",
+        "language": "Hinglish / English",
+        "whatsapp_copy": "Alert: Aapka recurring subscription payment (\u20b98,999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_028",
+        "voice_script": "Namaste Urban Company. Aapka subscription auto-debit expire ho gaya hai. Kripya hamare WhatsApp message par diye gaye link par jakar UPI AutoPay dobara verify karein.",
+        "ivr_intent": "subscription_mandate_reauth"
+      },
+      "recovered": true,
+      "recovered_amount": 8999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_029",
+      "amount": 11500,
+      "failure_type": "insufficient_funds",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 11:58:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Urban Company",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Authorization Balance Deficit",
+      "diagnosis_detail": "Issuer declined due to lack of funds (Error 51). Retriable after 24h salary / account replenishment.",
+      "confidence": "high",
+      "rule_id": "R-FUNDS-DELAY-24H",
+      "policy_action": "auto_retry_delayed_24hr",
+      "policy_reason": "Insufficient balance at debit. Schedule 24-hour delayed retry window to align with daily salary/account reload cycles.",
+      "stopping_rule": "Single delayed window only; escalate if balance remains insufficient.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_029/retry",
+        "payload": {
+          "amount": 1150000,
+          "currency": "INR",
+          "schedule": "delayed_24hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_029_867",
+        "entity": "payment",
+        "amount": 1150000,
+        "currency": "INR",
+        "status": "failed",
+        "method": "card",
+        "captured": false,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_029: Status auto_retry_delayed_24hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_030",
+      "amount": 68000,
+      "failure_type": "invoice_overdue_30d",
+      "vector": "b2b_receivables",
+      "vector_label": "B2B Receivables & Invoices",
+      "timestamp": "2026-09-05 12:01:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 0,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zomato Partner",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "B2B Net-30 Grace Period Expiration",
+      "diagnosis_detail": "Commercial invoice unpaid 15-30 days past due. Dispatches automated receivables reminder with PTP options.",
+      "confidence": "high",
+      "rule_id": "R-B2B-CHASER-30D",
+      "policy_action": "send_b2b_receivables_chaser",
+      "policy_reason": "Net-30 invoice overdue. Dispatch multi-channel receivables notice with 1-click Razorpay payment link and Promise-to-Pay capture portal.",
+      "stopping_rule": "Dunning cycle 1 of 3.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/invoices/txn_2026_030/chase",
+        "payload": {
+          "amount": 6800000,
+          "dunning_cycle": 1,
+          "ptp_portal_enabled": true
+        }
+      },
+      "simulated_response": {
+        "id": "inv_sim_26_030",
+        "entity": "b2b_invoice",
+        "short_url": "https://rzp.io/inv/26_030",
+        "status": "paid",
+        "amount_settled": 68000,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Email + Commercial WhatsApp",
+        "language": "Professional English + Hindi Assist",
+        "whatsapp_copy": "Dear Zomato Partner Accounts Team, Invoice #txn_2026_030 for \u20b968,000 is currently 30 days overdue. Please settle via instant Razorpay B2B portal: https://rzp.io/inv/26_030 or reply with your Promise-to-Pay (PTP) date.",
+        "voice_script": "Hello, this is Razorpay Automated Accounts Receivables calling for Zomato Partner. Your invoice txn_2026_030 of \u20b968,000 is due. Press 1 to pay via link, press 2 to record a Promise to Pay date.",
+        "ivr_intent": "b2b_ptp_negotiation"
+      },
+      "recovered": true,
+      "recovered_amount": 68000,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_031",
+      "amount": 3800,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 12:08:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Reliance Retail",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_031/retry",
+        "payload": {
+          "amount": 380000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_031_985",
+        "entity": "payment",
+        "amount": 380000,
+        "currency": "INR",
+        "status": "failed",
+        "method": "card",
+        "captured": false,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_031: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_032",
+      "amount": 3999,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 12:17:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 10.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Swiggy Instamart",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 359910,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_032 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Swiggy Instamart",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_032",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_032",
+        "status": "paid",
+        "amount_paid": 3999,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Swiggy Instamart ji! \ud83d\ude4f Aapka \u20b93,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_032 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b93,999 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 3999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_033",
+      "amount": 12000,
+      "failure_type": "duplicate_suspicious_pattern",
+      "vector": "fraud_risk",
+      "vector_label": "Risk & Velocity Anomaly",
+      "timestamp": "2026-09-05 12:26:00",
+      "retry_count_so_far": 2,
+      "recent_failure_count": 4,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Swiggy Instamart",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Card Testing / Rapid Velocity Bot Pattern",
+      "diagnosis_detail": "3+ sequential declines detected in 10 minutes across single device fingerprint. Quarantined for AML review.",
+      "confidence": "high",
+      "rule_id": "R-STOP-MAX-RETRY",
+      "policy_action": "escalate_to_human_review",
+      "policy_reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.",
+      "stopping_rule": "TERMINAL: Auto-retry execution halted; dossier forwarded to Merchant Ops queue.",
+      "execution_status": "escalated",
+      "status_badge": "Escalated",
+      "simulated_request": {
+        "system_channel": "merchant_ops_queue",
+        "action": "open_recovery_dossier",
+        "payload": {
+          "transaction_id": "txn_2026_033",
+          "amount_inr": 12000,
+          "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+        }
+      },
+      "simulated_response": {
+        "ticket_id": "esc_26_033",
+        "queue": "merchant_ops_priority",
+        "status": "assigned_specialist",
+        "sla_hours": 2,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_033: Status escalate_to_human_review.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Halted automated processing per policy stopping boundary. Human specialist intervention initiated."
+    },
+    {
+      "transaction_id": "txn_2026_034",
+      "amount": 18500,
+      "failure_type": "insufficient_funds",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 12:30:00",
+      "retry_count_so_far": 1,
+      "recent_failure_count": 2,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zomato Partner",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Authorization Balance Deficit",
+      "diagnosis_detail": "Issuer declined due to lack of funds (Error 51). Retriable after 24h salary / account replenishment.",
+      "confidence": "high",
+      "rule_id": "R-STOP-MAX-RETRY",
+      "policy_action": "escalate_to_human_review",
+      "policy_reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.",
+      "stopping_rule": "TERMINAL: Auto-retry execution halted; dossier forwarded to Merchant Ops queue.",
+      "execution_status": "escalated",
+      "status_badge": "Escalated",
+      "simulated_request": {
+        "system_channel": "merchant_ops_queue",
+        "action": "open_recovery_dossier",
+        "payload": {
+          "transaction_id": "txn_2026_034",
+          "amount_inr": 18500,
+          "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+        }
+      },
+      "simulated_response": {
+        "ticket_id": "esc_26_034",
+        "queue": "merchant_ops_priority",
+        "status": "assigned_specialist",
+        "sla_hours": 2,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_034: Status escalate_to_human_review.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Halted automated processing per policy stopping boundary. Human specialist intervention initiated."
+    },
+    {
+      "transaction_id": "txn_2026_035",
+      "amount": 8999,
+      "failure_type": "upi_mandate_expired",
+      "vector": "subscription_failure",
+      "vector_label": "Failed Subscriptions",
+      "timestamp": "2026-09-05 12:39:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "High-Volume B2B",
+      "diagnosis": "UPI AutoPay Mandate Token Expired",
+      "diagnosis_detail": "Pre-debit notification rejected by NPCI due to expired UMN mandate token. Needs 1-click re-auth link.",
+      "confidence": "high",
+      "rule_id": "R-MANDATE-RENEW",
+      "policy_action": "send_mandate_renewal_link",
+      "policy_reason": "UPI AutoPay mandate token lapsed. Issue Razorpay mandate re-auth link via WhatsApp/SMS to refresh mandate token in 1 click.",
+      "stopping_rule": "Link expires in 72h; fallback to invoice cancellation if unfulfilled.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/subscriptions/mandate_auth",
+        "payload": {
+          "customer_id": "cust__035",
+          "amount": 899900,
+          "auth_type": "upi_autopay"
+        }
+      },
+      "simulated_response": {
+        "id": "mandate_sim_26_035",
+        "entity": "subscription_mandate",
+        "short_url": "https://rzp.io/m/rec_26_035",
+        "status": "authenticated",
+        "mandate_token": "tok_upi_3900",
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + SMS",
+        "language": "Hinglish / English",
+        "whatsapp_copy": "Alert: Aapka recurring subscription payment (\u20b98,999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_035",
+        "voice_script": "Namaste Zepto Depot. Aapka subscription auto-debit expire ho gaya hai. Kripya hamare WhatsApp message par diye gaye link par jakar UPI AutoPay dobara verify karein.",
+        "ivr_intent": "subscription_mandate_reauth"
+      },
+      "recovered": true,
+      "recovered_amount": 8999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_036",
+      "amount": 3800,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 12:43:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_036/retry",
+        "payload": {
+          "amount": 380000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_036_125",
+        "entity": "payment",
+        "amount": 380000,
+        "currency": "INR",
+        "status": "failed",
+        "method": "card",
+        "captured": false,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_036: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_037",
+      "amount": 7999,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 12:50:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 14.7,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Urban Company",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 719910,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_037 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Urban Company",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_037",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_037",
+        "status": "paid",
+        "amount_paid": 7999,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Urban Company ji! \ud83d\ude4f Aapka \u20b97,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_037 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b97,999 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 7999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_038",
+      "amount": 3499,
+      "failure_type": "card_recurring_token_revoked",
+      "vector": "subscription_failure",
+      "vector_label": "Failed Subscriptions",
+      "timestamp": "2026-09-05 12:58:00",
+      "retry_count_so_far": 1,
+      "recent_failure_count": 2,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Recurring Card Tokenization Desync",
+      "diagnosis_detail": "RBI CoF token expired or card replaced. Customer must re-authenticate card with \u20b92 verification debit.",
+      "confidence": "high",
+      "rule_id": "R-CARD-TOKEN-REAUTH",
+      "policy_action": "send_card_reauth_link",
+      "policy_reason": "RBI CoF recurring card token desynced. Send \u20b92 verification re-auth link to establish fresh tokenization under RBI guidelines.",
+      "stopping_rule": "Link lifetime 48 hours.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/tokens/card/reauth",
+        "payload": {
+          "customer_id": "cust__038",
+          "auth_amount": 200,
+          "currency": "INR"
+        }
+      },
+      "simulated_response": {
+        "id": "tok_sim_26_038",
+        "entity": "card_token",
+        "status": "pending_customer_auth",
+        "rbi_compliance": "tokenized_consent_verified",
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_038: Status send_card_reauth_link.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_039",
+      "amount": 7999,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 13:04:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 9.1,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Swiggy Instamart",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 719910,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_039 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Swiggy Instamart",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_039",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_039",
+        "status": "paid",
+        "amount_paid": 7999,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Swiggy Instamart ji! \ud83d\ude4f Aapka \u20b97,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_039 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b97,999 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 7999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_040",
+      "amount": 3999,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 13:15:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 2.3,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Reliance Retail",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 359910,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_040 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Reliance Retail",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_040",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_040",
+        "status": "paid",
+        "amount_paid": 3999,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Reliance Retail ji! \ud83d\ude4f Aapka \u20b93,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_040 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b93,999 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 3999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_041",
+      "amount": 68000,
+      "failure_type": "invoice_overdue_30d",
+      "vector": "b2b_receivables",
+      "vector_label": "B2B Receivables & Invoices",
+      "timestamp": "2026-09-05 13:19:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 0,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "High-Volume B2B",
+      "diagnosis": "B2B Net-30 Grace Period Expiration",
+      "diagnosis_detail": "Commercial invoice unpaid 15-30 days past due. Dispatches automated receivables reminder with PTP options.",
+      "confidence": "high",
+      "rule_id": "R-B2B-CHASER-30D",
+      "policy_action": "send_b2b_receivables_chaser",
+      "policy_reason": "Net-30 invoice overdue. Dispatch multi-channel receivables notice with 1-click Razorpay payment link and Promise-to-Pay capture portal.",
+      "stopping_rule": "Dunning cycle 1 of 3.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/invoices/txn_2026_041/chase",
+        "payload": {
+          "amount": 6800000,
+          "dunning_cycle": 1,
+          "ptp_portal_enabled": true
+        }
+      },
+      "simulated_response": {
+        "id": "inv_sim_26_041",
+        "entity": "b2b_invoice",
+        "short_url": "https://rzp.io/inv/26_041",
+        "status": "paid",
+        "amount_settled": 68000,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Email + Commercial WhatsApp",
+        "language": "Professional English + Hindi Assist",
+        "whatsapp_copy": "Dear Zepto Depot Accounts Team, Invoice #txn_2026_041 for \u20b968,000 is currently 30 days overdue. Please settle via instant Razorpay B2B portal: https://rzp.io/inv/26_041 or reply with your Promise-to-Pay (PTP) date.",
+        "voice_script": "Hello, this is Razorpay Automated Accounts Receivables calling for Zepto Depot. Your invoice txn_2026_041 of \u20b968,000 is due. Press 1 to pay via link, press 2 to record a Promise to Pay date.",
+        "ivr_intent": "b2b_ptp_negotiation"
+      },
+      "recovered": true,
+      "recovered_amount": 68000,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_042",
+      "amount": 18500,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 13:28:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Reliance Retail",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_042/retry",
+        "payload": {
+          "amount": 1850000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_042_354",
+        "entity": "payment",
+        "amount": 1850000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_042: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 18500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_043",
+      "amount": 8999,
+      "failure_type": "upi_mandate_expired",
+      "vector": "subscription_failure",
+      "vector_label": "Failed Subscriptions",
+      "timestamp": "2026-09-05 13:35:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "High-Volume B2B",
+      "diagnosis": "UPI AutoPay Mandate Token Expired",
+      "diagnosis_detail": "Pre-debit notification rejected by NPCI due to expired UMN mandate token. Needs 1-click re-auth link.",
+      "confidence": "high",
+      "rule_id": "R-MANDATE-RENEW",
+      "policy_action": "send_mandate_renewal_link",
+      "policy_reason": "UPI AutoPay mandate token lapsed. Issue Razorpay mandate re-auth link via WhatsApp/SMS to refresh mandate token in 1 click.",
+      "stopping_rule": "Link expires in 72h; fallback to invoice cancellation if unfulfilled.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/subscriptions/mandate_auth",
+        "payload": {
+          "customer_id": "cust__043",
+          "amount": 899900,
+          "auth_type": "upi_autopay"
+        }
+      },
+      "simulated_response": {
+        "id": "mandate_sim_26_043",
+        "entity": "subscription_mandate",
+        "short_url": "https://rzp.io/m/rec_26_043",
+        "status": "authenticated",
+        "mandate_token": "tok_upi_2771",
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + SMS",
+        "language": "Hinglish / English",
+        "whatsapp_copy": "Alert: Aapka recurring subscription payment (\u20b98,999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_043",
+        "voice_script": "Namaste Lenskart VIP. Aapka subscription auto-debit expire ho gaya hai. Kripya hamare WhatsApp message par diye gaye link par jakar UPI AutoPay dobara verify karein.",
+        "ivr_intent": "subscription_mandate_reauth"
+      },
+      "recovered": true,
+      "recovered_amount": 8999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_044",
+      "amount": 95000,
+      "failure_type": "invoice_overdue_90d_default",
+      "vector": "b2b_receivables",
+      "vector_label": "B2B Receivables & Invoices",
+      "timestamp": "2026-09-05 13:42:00",
+      "retry_count_so_far": 3,
+      "recent_failure_count": 3,
+      "cart_age_hours": 0.0,
+      "ptp_status": "breached",
+      "ptp_date": null,
+      "customer_name": "Swiggy Instamart",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Chronic Delinquency (>60 Days Past Due)",
+      "diagnosis_detail": "Exceeded all dunning cycles without payment or PTP. Escalated to Merchant Finance Legal & Recovery Ops.",
+      "confidence": "high",
+      "rule_id": "R-B2B-LEGAL-ESCALATE",
+      "policy_action": "escalate_to_finance_collections",
+      "policy_reason": "Chronic delinquency (>60 days past due). Dunning sequence exhausted; escalated to Commercial Collections & Finance Legal Ops.",
+      "stopping_rule": "TERMINAL: Automated actions halted; legal collections initiated.",
+      "execution_status": "escalated",
+      "status_badge": "Escalated",
+      "simulated_request": {
+        "system_channel": "finance_legal_ops",
+        "action": "open_recovery_dossier",
+        "payload": {
+          "transaction_id": "txn_2026_044",
+          "amount_inr": 95000,
+          "reason": "Chronic delinquency (>60 days past due). Dunning sequence exhausted; escalated to Commercial Collections & Finance Legal Ops."
+        }
+      },
+      "simulated_response": {
+        "ticket_id": "esc_26_044",
+        "queue": "commercial_collections_tier1",
+        "status": "assigned_specialist",
+        "sla_hours": 24,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_044: Status escalate_to_finance_collections.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Halted automated processing per policy stopping boundary. Human specialist intervention initiated."
+    },
+    {
+      "transaction_id": "txn_2026_045",
+      "amount": 6200,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 13:47:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Reliance Retail",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_045/retry",
+        "payload": {
+          "amount": 620000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_045_139",
+        "entity": "payment",
+        "amount": 620000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_045: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 6200,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_046",
+      "amount": 24500,
+      "failure_type": "insufficient_funds",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 13:55:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Reliance Retail",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Authorization Balance Deficit",
+      "diagnosis_detail": "Issuer declined due to lack of funds (Error 51). Retriable after 24h salary / account replenishment.",
+      "confidence": "high",
+      "rule_id": "R-FUNDS-DELAY-24H",
+      "policy_action": "auto_retry_delayed_24hr",
+      "policy_reason": "Insufficient balance at debit. Schedule 24-hour delayed retry window to align with daily salary/account reload cycles.",
+      "stopping_rule": "Single delayed window only; escalate if balance remains insufficient.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_046/retry",
+        "payload": {
+          "amount": 2450000,
+          "currency": "INR",
+          "schedule": "delayed_24hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_046_327",
+        "entity": "payment",
+        "amount": 2450000,
+        "currency": "INR",
+        "status": "failed",
+        "method": "card",
+        "captured": false,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_046: Status auto_retry_delayed_24hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_047",
+      "amount": 18500,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 14:04:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 9.4,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Flipkart Seller",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 1665000,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_047 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Flipkart Seller",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_047",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_047",
+        "status": "paid",
+        "amount_paid": 18500,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Flipkart Seller ji! \ud83d\ude4f Aapka \u20b918,500 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_047 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b918,500 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 18500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_048",
+      "amount": 24500,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 14:08:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zomato Partner",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_048/retry",
+        "payload": {
+          "amount": 2450000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_048_458",
+        "entity": "payment",
+        "amount": 2450000,
+        "currency": "INR",
+        "status": "failed",
+        "method": "card",
+        "captured": false,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_048: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_049",
+      "amount": 3999,
+      "failure_type": "checkout_abandoned_fresh",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 14:15:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 12.6,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zepto Depot",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "diagnosis_detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-NUDGE",
+      "policy_action": "send_hinglish_nudge_with_discount",
+      "policy_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 359910,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_049 (10% Hinglish VIP Nudge)",
+          "customer": {
+            "name": "Zepto Depot",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_049",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_049",
+        "status": "paid",
+        "amount_paid": 3999,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + Voice IVR",
+        "language": "Hinglish (Hindi + English)",
+        "whatsapp_copy": "Namaste Zepto Depot ji! \ud83d\ude4f Aapka \u20b93,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! \u26a1 Link: https://rzp.io/i/rec_26_049 (Expires in 2 hrs)",
+        "voice_script": "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka \u20b93,999 ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye.",
+        "ivr_intent": "high_intent_instant_checkout"
+      },
+      "recovered": true,
+      "recovered_amount": 3999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_050",
+      "amount": 14999,
+      "failure_type": "card_recurring_token_revoked",
+      "vector": "subscription_failure",
+      "vector_label": "Failed Subscriptions",
+      "timestamp": "2026-09-05 14:25:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Reliance Retail",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Recurring Card Tokenization Desync",
+      "diagnosis_detail": "RBI CoF token expired or card replaced. Customer must re-authenticate card with \u20b92 verification debit.",
+      "confidence": "high",
+      "rule_id": "R-CARD-TOKEN-REAUTH",
+      "policy_action": "send_card_reauth_link",
+      "policy_reason": "RBI CoF recurring card token desynced. Send \u20b92 verification re-auth link to establish fresh tokenization under RBI guidelines.",
+      "stopping_rule": "Link lifetime 48 hours.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/tokens/card/reauth",
+        "payload": {
+          "customer_id": "cust__050",
+          "auth_amount": 200,
+          "currency": "INR"
+        }
+      },
+      "simulated_response": {
+        "id": "tok_sim_26_050",
+        "entity": "card_token",
+        "status": "pending_customer_auth",
+        "rbi_compliance": "tokenized_consent_verified",
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_050: Status send_card_reauth_link.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_051",
+      "amount": 3999,
+      "failure_type": "checkout_abandoned_aged",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 14:32:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 59.2,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Nykaa Merchant",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Dormant Checkout Drop-off (>48 Hours)",
+      "diagnosis_detail": "Cart abandoned over 48 hours ago. Intent degraded; standard payment link dispatch without urgency.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-STANDARD",
+      "policy_action": "send_recovery_link_standard",
+      "policy_reason": "Checkout drop over 48 hours old. Dispatch standard Razorpay payment link preserving cart items without urgency wording.",
+      "stopping_rule": "Standard link lifetime 7 days.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 399900,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_051",
+          "customer": {
+            "name": "Nykaa Merchant",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_051",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_051",
+        "status": "paid",
+        "amount_paid": 3999,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_051: Status send_recovery_link_standard.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 3999,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_052",
+      "amount": 6200,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 14:36:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "High-Volume B2B",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_052/retry",
+        "payload": {
+          "amount": 620000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_052_297",
+        "entity": "payment",
+        "amount": 620000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_052: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 6200,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_053",
+      "amount": 68000,
+      "failure_type": "invoice_overdue_60d_ptp_active",
+      "vector": "b2b_receivables",
+      "vector_label": "B2B Receivables & Invoices",
+      "timestamp": "2026-09-05 14:44:00",
+      "retry_count_so_far": 1,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "active",
+      "ptp_date": "2026-09-09",
+      "customer_name": "Swiggy Instamart",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Active Debtor Promise-to-Pay (PTP) Commitment",
+      "diagnosis_detail": "Debtor logged verified Promise-to-Pay date within 7 days. Automated recovery paused per compliance rules.",
+      "confidence": "high",
+      "rule_id": "R-B2B-PTP-PAUSE",
+      "policy_action": "pause_recovery_ptp_active",
+      "policy_reason": "Compliance rule: Debtor has active verified Promise-to-Pay commitment. System strictly pauses automated dunning to honor agreement.",
+      "stopping_rule": "PAUSED: Automatic dunning suppressed until commitment date passes.",
+      "execution_status": "ptp_paused",
+      "status_badge": "PTP Active",
+      "simulated_request": {
+        "system_channel": "receivables_ledger",
+        "action": "apply_ptp_moratorium",
+        "payload": {
+          "invoice_id": "txn_2026_053",
+          "ptp_date": "2026-09-09",
+          "status": "active"
+        }
+      },
+      "simulated_response": {
+        "moratorium_id": "ptp_mor_26_053",
+        "status": "dunning_suppressed",
+        "hold_until": "2026-09-09",
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "System Hold",
+        "language": "Internal Ops Note",
+        "whatsapp_copy": "Automated notices paused. Debtor promised settlement by 2026-09-09. System monitoring escrow account.",
+        "voice_script": "No outbound calls permitted during active Promise-to-Pay window.",
+        "ivr_intent": "ptp_moratorium_active"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Automated dunning paused. Debtor commitment active; escrow monitoring active."
+    },
+    {
+      "transaction_id": "txn_2026_054",
+      "amount": 3800,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 14:52:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zomato Partner",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_054/retry",
+        "payload": {
+          "amount": 380000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_054_385",
+        "entity": "payment",
+        "amount": 380000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_054: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 3800,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_055",
+      "amount": 24500,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 15:00:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "D2C Brand",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_055/retry",
+        "payload": {
+          "amount": 2450000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_055_891",
+        "entity": "payment",
+        "amount": 2450000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_055: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 24500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_056",
+      "amount": 11500,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 15:04:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Nykaa Merchant",
+      "customer_segment": "SMB Merchant",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_056/retry",
+        "payload": {
+          "amount": 1150000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_056_756",
+        "entity": "payment",
+        "amount": 1150000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_056: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 11500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_057",
+      "amount": 6200,
+      "failure_type": "network_timeout",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 15:14:00",
+      "retry_count_so_far": 1,
+      "recent_failure_count": 2,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "diagnosis_detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement.",
+      "confidence": "high",
+      "rule_id": "R-NET-IMMEDIATE",
+      "policy_action": "auto_retry_now",
+      "policy_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_057/retry",
+        "payload": {
+          "amount": 620000,
+          "currency": "INR",
+          "schedule": "now"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_057_795",
+        "entity": "payment",
+        "amount": 620000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_057: Status auto_retry_now.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 6200,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_058",
+      "amount": 14999,
+      "failure_type": "upi_mandate_expired",
+      "vector": "subscription_failure",
+      "vector_label": "Failed Subscriptions",
+      "timestamp": "2026-09-05 15:21:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "Fintech Pro",
+      "diagnosis": "UPI AutoPay Mandate Token Expired",
+      "diagnosis_detail": "Pre-debit notification rejected by NPCI due to expired UMN mandate token. Needs 1-click re-auth link.",
+      "confidence": "high",
+      "rule_id": "R-MANDATE-RENEW",
+      "policy_action": "send_mandate_renewal_link",
+      "policy_reason": "UPI AutoPay mandate token lapsed. Issue Razorpay mandate re-auth link via WhatsApp/SMS to refresh mandate token in 1 click.",
+      "stopping_rule": "Link expires in 72h; fallback to invoice cancellation if unfulfilled.",
+      "execution_status": "attempted_unsettled",
+      "status_badge": "Unsettled",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/subscriptions/mandate_auth",
+        "payload": {
+          "customer_id": "cust__058",
+          "amount": 1499900,
+          "auth_type": "upi_autopay"
+        }
+      },
+      "simulated_response": {
+        "id": "mandate_sim_26_058",
+        "entity": "subscription_mandate",
+        "short_url": "https://rzp.io/m/rec_26_058",
+        "status": "issued",
+        "mandate_token": null,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "WhatsApp + SMS",
+        "language": "Hinglish / English",
+        "whatsapp_copy": "Alert: Aapka recurring subscription payment (\u20b914,999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_058",
+        "voice_script": "Namaste Lenskart VIP. Aapka subscription auto-debit expire ho gaya hai. Kripya hamare WhatsApp message par diye gaye link par jakar UPI AutoPay dobara verify karein.",
+        "ivr_intent": "subscription_mandate_reauth"
+      },
+      "recovered": false,
+      "recovered_amount": 0,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_059",
+      "amount": 3800,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 15:26:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Zomato Partner",
+      "customer_segment": "SaaS Enterprise",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_059/retry",
+        "payload": {
+          "amount": 380000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_059_128",
+        "entity": "payment",
+        "amount": 380000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_059: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 3800,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_060",
+      "amount": 24500,
+      "failure_type": "issuer_decline_soft",
+      "vector": "payment_failure",
+      "vector_label": "Payment Degradation",
+      "timestamp": "2026-09-05 15:33:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 0.0,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "diagnosis_detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window.",
+      "confidence": "high",
+      "rule_id": "R-SOFT-DELAY-1H",
+      "policy_action": "auto_retry_delayed_1hr",
+      "policy_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payments/txn_2026_060/retry",
+        "payload": {
+          "amount": 2450000,
+          "currency": "INR",
+          "schedule": "delayed_1hr"
+        }
+      },
+      "simulated_response": {
+        "id": "pay_sim_26_060_367",
+        "entity": "payment",
+        "amount": 2450000,
+        "currency": "INR",
+        "status": "captured",
+        "method": "card",
+        "captured": true,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_060: Status auto_retry_delayed_1hr.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 24500,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    },
+    {
+      "transaction_id": "txn_2026_061",
+      "amount": 5499,
+      "failure_type": "checkout_abandoned_aged",
+      "vector": "checkout_abandonment",
+      "vector_label": "Checkout Drop-off",
+      "timestamp": "2026-09-05 15:39:00",
+      "retry_count_so_far": 0,
+      "recent_failure_count": 1,
+      "cart_age_hours": 65.8,
+      "ptp_status": "none",
+      "ptp_date": null,
+      "customer_name": "Lenskart VIP",
+      "customer_segment": "B2C Consumer",
+      "diagnosis": "Dormant Checkout Drop-off (>48 Hours)",
+      "diagnosis_detail": "Cart abandoned over 48 hours ago. Intent degraded; standard payment link dispatch without urgency.",
+      "confidence": "high",
+      "rule_id": "R-ABANDON-STANDARD",
+      "policy_action": "send_recovery_link_standard",
+      "policy_reason": "Checkout drop over 48 hours old. Dispatch standard Razorpay payment link preserving cart items without urgency wording.",
+      "stopping_rule": "Standard link lifetime 7 days.",
+      "execution_status": "recovered",
+      "status_badge": "Recovered",
+      "simulated_request": {
+        "method": "POST",
+        "endpoint": "/v1/payment_links",
+        "payload": {
+          "amount": 549900,
+          "currency": "INR",
+          "description": "Checkout recovery for txn_2026_061",
+          "customer": {
+            "name": "Lenskart VIP",
+            "contact": "+919876543210"
+          }
+        }
+      },
+      "simulated_response": {
+        "id": "plink_sim_26_061",
+        "entity": "payment_link",
+        "short_url": "https://rzp.io/i/rec_26_061",
+        "status": "paid",
+        "amount_paid": 5499,
+        "_audit_note": "SIMULATED (test-mode shape)"
+      },
+      "vernacular": {
+        "channel": "Standard System",
+        "language": "English",
+        "whatsapp_copy": "Payment update for txn_2026_061: Status send_recovery_link_standard.",
+        "voice_script": "Automated system notification.",
+        "ivr_intent": "standard_system_event"
+      },
+      "recovered": true,
+      "recovered_amount": 5499,
+      "graceful_summary": "Simulated Razorpay API test envelope executed."
+    }
+  ],
+  "vectors": {
+    "payment_failure": "Payment Degradation",
+    "checkout_abandonment": "Checkout Drop-off",
+    "subscription_failure": "Failed Subscriptions",
+    "b2b_receivables": "B2B Receivables & Invoices",
+    "fraud_risk": "Risk & Velocity Anomaly"
+  },
+  "failure_configs": {
+    "issuer_decline_soft": {
+      "vector": "payment_failure",
+      "diagnosis": "Temporary Bank Network Flap / Switch Drop",
+      "confidence": "high",
+      "is_retriable": true,
+      "detail": "Customer issuer bank responded with soft decline (Error 05/91). Retriable with CBS recovery window."
+    },
+    "network_timeout": {
+      "vector": "payment_failure",
+      "diagnosis": "Gateway / NPCI Hop Latency Timeout",
+      "confidence": "high",
+      "is_retriable": true,
+      "detail": "TCP socket timeout during 3DS / NPCI switch handshake. Transaction dropped in transit before settlement."
+    },
+    "insufficient_funds": {
+      "vector": "payment_failure",
+      "diagnosis": "Authorization Balance Deficit",
+      "confidence": "high",
+      "is_retriable": true,
+      "detail": "Issuer declined due to lack of funds (Error 51). Retriable after 24h salary / account replenishment."
+    },
+    "issuer_decline_hard": {
+      "vector": "payment_failure",
+      "diagnosis": "Terminal Card Restriction / Fraud Blacklist",
+      "confidence": "high",
+      "is_retriable": false,
+      "detail": "Card reported lost/stolen, KYC blocked, or canceled. Retries strictly prohibited by card networks."
+    },
+    "checkout_abandoned_fresh": {
+      "vector": "checkout_abandonment",
+      "diagnosis": "Pre-Authorization Drop-off (Within 24 Hours)",
+      "confidence": "high",
+      "is_retriable": true,
+      "detail": "High-intent buyer dropped off at 2FA prompt. Fresh intent; eligible for dynamic 10% Hinglish nudge."
+    },
+    "checkout_abandoned_aged": {
+      "vector": "checkout_abandonment",
+      "diagnosis": "Dormant Checkout Drop-off (>48 Hours)",
+      "confidence": "high",
+      "is_retriable": true,
+      "detail": "Cart abandoned over 48 hours ago. Intent degraded; standard payment link dispatch without urgency."
+    },
+    "upi_mandate_expired": {
+      "vector": "subscription_failure",
+      "diagnosis": "UPI AutoPay Mandate Token Expired",
+      "confidence": "high",
+      "is_retriable": true,
+      "detail": "Pre-debit notification rejected by NPCI due to expired UMN mandate token. Needs 1-click re-auth link."
+    },
+    "card_recurring_token_revoked": {
+      "vector": "subscription_failure",
+      "diagnosis": "Recurring Card Tokenization Desync",
+      "confidence": "high",
+      "is_retriable": true,
+      "detail": "RBI CoF token expired or card replaced. Customer must re-authenticate card with \u20b92 verification debit."
+    },
+    "invoice_overdue_30d": {
+      "vector": "b2b_receivables",
+      "diagnosis": "B2B Net-30 Grace Period Expiration",
+      "confidence": "high",
+      "is_retriable": true,
+      "detail": "Commercial invoice unpaid 15-30 days past due. Dispatches automated receivables reminder with PTP options."
+    },
+    "invoice_overdue_60d_ptp_active": {
+      "vector": "b2b_receivables",
+      "diagnosis": "Active Debtor Promise-to-Pay (PTP) Commitment",
+      "confidence": "high",
+      "is_retriable": true,
+      "detail": "Debtor logged verified Promise-to-Pay date within 7 days. Automated recovery paused per compliance rules."
+    },
+    "invoice_overdue_90d_default": {
+      "vector": "b2b_receivables",
+      "diagnosis": "Chronic Delinquency (>60 Days Past Due)",
+      "confidence": "high",
+      "is_retriable": false,
+      "detail": "Exceeded all dunning cycles without payment or PTP. Escalated to Merchant Finance Legal & Recovery Ops."
+    },
+    "duplicate_suspicious_pattern": {
+      "vector": "fraud_risk",
+      "diagnosis": "Card Testing / Rapid Velocity Bot Pattern",
+      "confidence": "high",
+      "is_retriable": false,
+      "detail": "3+ sequential declines detected in 10 minutes across single device fingerprint. Quarantined for AML review."
+    }
+  },
+  "ruleset": [
+    {
+      "rule_id": "R-STOP-MAX-RETRY",
+      "condition": "retry_count_so_far >= 2 and vector != 'b2b_receivables'",
+      "allowed_action": "escalate_to_human_review",
+      "human_readable_reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.",
+      "stopping_rule": "TERMINAL: Auto-retry execution halted; dossier forwarded to Merchant Ops queue."
+    },
+    {
+      "rule_id": "R-STOP-HARD-DECLINE",
+      "condition": "failure_type == 'issuer_decline_hard'",
+      "allowed_action": "do_not_retry_flag_unrecoverable",
+      "human_readable_reason": "Compliance stopping rule: Card reported lost, stolen, or blocked by issuer. Visa/Mastercard network mandates zero automated re-attempts.",
+      "stopping_rule": "TERMINAL: Card fingerprint permanently suppressed from recovery pipeline."
+    },
+    {
+      "rule_id": "R-FRAUD-VELOCITY",
+      "condition": "failure_type == 'duplicate_suspicious_pattern'",
+      "allowed_action": "escalate_to_human_review",
+      "human_readable_reason": "Risk mitigation rule: High-frequency velocity anomaly (>3 rapid failures) detected across single fingerprint. Potential card testing bot.",
+      "stopping_rule": "HALTED: Immediate quarantine; bypasses automated recovery to protect chargeback ratio."
+    },
+    {
+      "rule_id": "R-NET-IMMEDIATE",
+      "condition": "failure_type == 'network_timeout' and retry_count_so_far < 2",
+      "allowed_action": "auto_retry_now",
+      "human_readable_reason": "Transient network switch timeout. Automatically route through secondary banking route (HDFC/Axis) and re-attempt authorization immediately.",
+      "stopping_rule": "Max 1 immediate retry; abort if unacknowledged."
+    },
+    {
+      "rule_id": "R-SOFT-DELAY-1H",
+      "condition": "failure_type == 'issuer_decline_soft' and retry_count_so_far < 2",
+      "allowed_action": "auto_retry_delayed_1hr",
+      "human_readable_reason": "Temporary issuer bank switch drop (Error 91). Queue automated retry for 1 hour to allow Core Banking Solution (CBS) recovery.",
+      "stopping_rule": "Schedule 1 delayed run; abort if retry_count >= 2."
+    },
+    {
+      "rule_id": "R-FUNDS-DELAY-24H",
+      "condition": "failure_type == 'insufficient_funds' and retry_count_so_far < 1",
+      "allowed_action": "auto_retry_delayed_24hr",
+      "human_readable_reason": "Insufficient balance at debit. Schedule 24-hour delayed retry window to align with daily salary/account reload cycles.",
+      "stopping_rule": "Single delayed window only; escalate if balance remains insufficient."
+    },
+    {
+      "rule_id": "R-ABANDON-NUDGE",
+      "condition": "failure_type == 'checkout_abandoned_fresh'",
+      "allowed_action": "send_hinglish_nudge_with_discount",
+      "human_readable_reason": "High-intent checkout drop within 24 hours. Dispatch dynamic Razorpay Payment Link paired with personalized 10% Hinglish WhatsApp nudge.",
+      "stopping_rule": "Single nudge policy; no follow-up spam allowed."
+    },
+    {
+      "rule_id": "R-ABANDON-STANDARD",
+      "condition": "failure_type == 'checkout_abandoned_aged'",
+      "allowed_action": "send_recovery_link_standard",
+      "human_readable_reason": "Checkout drop over 48 hours old. Dispatch standard Razorpay payment link preserving cart items without urgency wording.",
+      "stopping_rule": "Standard link lifetime 7 days."
+    },
+    {
+      "rule_id": "R-MANDATE-RENEW",
+      "condition": "failure_type == 'upi_mandate_expired'",
+      "allowed_action": "send_mandate_renewal_link",
+      "human_readable_reason": "UPI AutoPay mandate token lapsed. Issue Razorpay mandate re-auth link via WhatsApp/SMS to refresh mandate token in 1 click.",
+      "stopping_rule": "Link expires in 72h; fallback to invoice cancellation if unfulfilled."
+    },
+    {
+      "rule_id": "R-CARD-TOKEN-REAUTH",
+      "condition": "failure_type == 'card_recurring_token_revoked'",
+      "allowed_action": "send_card_reauth_link",
+      "human_readable_reason": "RBI CoF recurring card token desynced. Send \u20b92 verification re-auth link to establish fresh tokenization under RBI guidelines.",
+      "stopping_rule": "Link lifetime 48 hours."
+    },
+    {
+      "rule_id": "R-B2B-PTP-PAUSE",
+      "condition": "failure_type == 'invoice_overdue_60d_ptp_active' or ptp_status == 'active'",
+      "allowed_action": "pause_recovery_ptp_active",
+      "human_readable_reason": "Compliance rule: Debtor has active verified Promise-to-Pay commitment. System strictly pauses automated dunning to honor agreement.",
+      "stopping_rule": "PAUSED: Automatic dunning suppressed until commitment date passes."
+    },
+    {
+      "rule_id": "R-B2B-CHASER-30D",
+      "condition": "failure_type == 'invoice_overdue_30d'",
+      "allowed_action": "send_b2b_receivables_chaser",
+      "human_readable_reason": "Net-30 invoice overdue. Dispatch multi-channel receivables notice with 1-click Razorpay payment link and Promise-to-Pay capture portal.",
+      "stopping_rule": "Dunning cycle 1 of 3."
+    },
+    {
+      "rule_id": "R-B2B-LEGAL-ESCALATE",
+      "condition": "failure_type == 'invoice_overdue_90d_default'",
+      "allowed_action": "escalate_to_finance_collections",
+      "human_readable_reason": "Chronic delinquency (>60 days past due). Dunning sequence exhausted; escalated to Commercial Collections & Finance Legal Ops.",
+      "stopping_rule": "TERMINAL: Automated actions halted; legal collections initiated."
+    }
+  ]
+}

@@ -1,0 +1,3105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recovery Agent — Multi-Vector Revenue Recovery Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="report-wrapper">
+    <header class="report-header">
+        <div class="report-brand">
+            <div class="brand-title">Recovery Agent — Multi-Vector Revenue Recovery Audit</div>
+            <div class="brand-meta">Batch 2026-Q3 · Deterministic Policy v2.0 · Live Web Server at http://localhost:8000</div>
+        </div>
+        <div class="header-actions">
+            <a href="http://localhost:8000" class="btn-primary" target="_blank" style="text-decoration:none;">Open Live Interactive Demo</a>
+        </div>
+    </header>
+
+    <section class="hero-section">
+        <div class="hero-label">Total revenue recovered</div>
+        <div class="hero-recovered" id="heroRecovered">₹0</div>
+        <div class="hero-subtext">
+            Recovered <span class="gold-text">₹193,991</span> of ₹926,573 at risk — a 20.9% recovery rate across 60 multi-vector events.
+        </div>
+        <div class="hero-vectors-strip">
+            
+        <div class="vector-mini-card">
+            <div class="vector-mini-title">B2B Receivables & Invoices</div>
+            <div class="vector-mini-recovered">₹90,000</div>
+            <div class="vector-mini-meta">2/7 won · 19.2%</div>
+        </div>
+        
+        <div class="vector-mini-card">
+            <div class="vector-mini-title">Payment Degradation</div>
+            <div class="vector-mini-recovered">₹73,497</div>
+            <div class="vector-mini-meta">10/29 won · 26.6%</div>
+        </div>
+        
+        <div class="vector-mini-card">
+            <div class="vector-mini-title">Checkout Drop-off</div>
+            <div class="vector-mini-recovered">₹19,497</div>
+            <div class="vector-mini-meta">3/12 won · 25.8%</div>
+        </div>
+        
+        <div class="vector-mini-card">
+            <div class="vector-mini-title">Failed Subscriptions</div>
+            <div class="vector-mini-recovered">₹10,997</div>
+            <div class="vector-mini-meta">3/10 won · 26.2%</div>
+        </div>
+        
+        <div class="vector-mini-card">
+            <div class="vector-mini-title">Risk & Velocity Anomaly</div>
+            <div class="vector-mini-recovered">₹0</div>
+            <div class="vector-mini-meta">0/2 won · 0.0%</div>
+        </div>
+        
+        </div>
+    </section>
+
+    <section>
+        <div class="section-header">
+            <div>
+                <h2>The policy</h2>
+                <p class="section-intro">Every action below traces to one of these rules — nothing here is a black-box decision.</p>
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rule ID</th>
+                        <th>Condition</th>
+                        <th>Action</th>
+                        <th>Stopping rule</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-STOP-MAX-RETRY</td>
+            <td><code class="code-inline">retry_count_so_far >= 2 and vector != 'b2b_receivables'</code></td>
+            <td class="font-mono">escalate_to_human_review</td>
+            <td style="color: var(--text-muted);">TERMINAL: Auto-retry execution halted; dossier forwarded to Merchant Ops queue.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-STOP-HARD-DECLINE</td>
+            <td><code class="code-inline">failure_type == 'issuer_decline_hard'</code></td>
+            <td class="font-mono">do_not_retry_flag_unrecoverable</td>
+            <td style="color: var(--text-muted);">TERMINAL: Card fingerprint permanently suppressed from recovery pipeline.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-FRAUD-VELOCITY</td>
+            <td><code class="code-inline">failure_type == 'duplicate_suspicious_pattern'</code></td>
+            <td class="font-mono">escalate_to_human_review</td>
+            <td style="color: var(--text-muted);">HALTED: Immediate quarantine; bypasses automated recovery to protect chargeback ratio.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-NET-IMMEDIATE</td>
+            <td><code class="code-inline">failure_type == 'network_timeout' and retry_count_so_far < 2</code></td>
+            <td class="font-mono">auto_retry_now</td>
+            <td style="color: var(--text-muted);">Max 1 immediate retry; abort if unacknowledged.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-SOFT-DELAY-1H</td>
+            <td><code class="code-inline">failure_type == 'issuer_decline_soft' and retry_count_so_far < 2</code></td>
+            <td class="font-mono">auto_retry_delayed_1hr</td>
+            <td style="color: var(--text-muted);">Schedule 1 delayed run; abort if retry_count >= 2.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-FUNDS-DELAY-24H</td>
+            <td><code class="code-inline">failure_type == 'insufficient_funds' and retry_count_so_far < 1</code></td>
+            <td class="font-mono">auto_retry_delayed_24hr</td>
+            <td style="color: var(--text-muted);">Single delayed window only; escalate if balance remains insufficient.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-ABANDON-NUDGE</td>
+            <td><code class="code-inline">failure_type == 'checkout_abandoned_fresh'</code></td>
+            <td class="font-mono">send_hinglish_nudge_with_discount</td>
+            <td style="color: var(--text-muted);">Single nudge policy; no follow-up spam allowed.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-ABANDON-STANDARD</td>
+            <td><code class="code-inline">failure_type == 'checkout_abandoned_aged'</code></td>
+            <td class="font-mono">send_recovery_link_standard</td>
+            <td style="color: var(--text-muted);">Standard link lifetime 7 days.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-MANDATE-RENEW</td>
+            <td><code class="code-inline">failure_type == 'upi_mandate_expired'</code></td>
+            <td class="font-mono">send_mandate_renewal_link</td>
+            <td style="color: var(--text-muted);">Link expires in 72h; fallback to invoice cancellation if unfulfilled.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-CARD-TOKEN-REAUTH</td>
+            <td><code class="code-inline">failure_type == 'card_recurring_token_revoked'</code></td>
+            <td class="font-mono">send_card_reauth_link</td>
+            <td style="color: var(--text-muted);">Link lifetime 48 hours.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-B2B-PTP-PAUSE</td>
+            <td><code class="code-inline">failure_type == 'invoice_overdue_60d_ptp_active' or ptp_status == 'active'</code></td>
+            <td class="font-mono">pause_recovery_ptp_active</td>
+            <td style="color: var(--text-muted);">PAUSED: Automatic dunning suppressed until commitment date passes.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-B2B-CHASER-30D</td>
+            <td><code class="code-inline">failure_type == 'invoice_overdue_30d'</code></td>
+            <td class="font-mono">send_b2b_receivables_chaser</td>
+            <td style="color: var(--text-muted);">Dunning cycle 1 of 3.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono" style="color: var(--text-muted);">R-B2B-LEGAL-ESCALATE</td>
+            <td><code class="code-inline">failure_type == 'invoice_overdue_90d_default'</code></td>
+            <td class="font-mono">escalate_to_finance_collections</td>
+            <td style="color: var(--text-muted);">TERMINAL: Automated actions halted; legal collections initiated.</td>
+        </tr>
+        
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section>
+        <div class="section-header">
+            <div>
+                <h2>Breakdown by failure vector</h2>
+                <p class="section-intro">Capital recovered across all 4 revenue loss channels. Green bars indicate recovered funds, while figures in gold denote net recovered capital.</p>
+            </div>
+        </div>
+        <div class="breakdown-list">
+            
+        <div class="breakdown-row">
+            <div class="breakdown-info">
+                <span class="breakdown-label">B2B Receivables & Invoices</span>
+                <span class="breakdown-meta">2/7 won · ₹468,500 at risk · 19.2% rate</span>
+            </div>
+            <div class="breakdown-bar-container">
+                <div class="bar-track" style="width: 100%;">
+                    <div class="bar-fill" style="width: 19%;"></div>
+                </div>
+            </div>
+            <div class="breakdown-amount font-tabular">
+                ₹90,000
+            </div>
+        </div>
+        
+
+        <div class="breakdown-row">
+            <div class="breakdown-info">
+                <span class="breakdown-label">Payment Degradation</span>
+                <span class="breakdown-meta">10/29 won · ₹276,595 at risk · 26.6% rate</span>
+            </div>
+            <div class="breakdown-bar-container">
+                <div class="bar-track" style="width: 59%;">
+                    <div class="bar-fill" style="width: 27%;"></div>
+                </div>
+            </div>
+            <div class="breakdown-amount font-tabular">
+                ₹73,497
+            </div>
+        </div>
+        
+
+        <div class="breakdown-row">
+            <div class="breakdown-info">
+                <span class="breakdown-label">Checkout Drop-off</span>
+                <span class="breakdown-meta">3/12 won · ₹75,488 at risk · 25.8% rate</span>
+            </div>
+            <div class="breakdown-bar-container">
+                <div class="bar-track" style="width: 16%;">
+                    <div class="bar-fill" style="width: 26%;"></div>
+                </div>
+            </div>
+            <div class="breakdown-amount font-tabular">
+                ₹19,497
+            </div>
+        </div>
+        
+
+        <div class="breakdown-row">
+            <div class="breakdown-info">
+                <span class="breakdown-label">Failed Subscriptions</span>
+                <span class="breakdown-meta">3/10 won · ₹41,990 at risk · 26.2% rate</span>
+            </div>
+            <div class="breakdown-bar-container">
+                <div class="bar-track" style="width: 9%;">
+                    <div class="bar-fill" style="width: 26%;"></div>
+                </div>
+            </div>
+            <div class="breakdown-amount font-tabular">
+                ₹10,997
+            </div>
+        </div>
+        
+
+        <div class="breakdown-row">
+            <div class="breakdown-info">
+                <span class="breakdown-label">Risk & Velocity Anomaly</span>
+                <span class="breakdown-meta">0/2 won · ₹64,000 at risk · 0.0% rate</span>
+            </div>
+            <div class="breakdown-bar-container">
+                <div class="bar-track" style="width: 14%;">
+                    <div class="bar-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="breakdown-amount font-tabular">
+                ₹0
+            </div>
+        </div>
+        
+        </div>
+    </section>
+
+    <section>
+        <div class="section-header">
+            <div>
+                <h2>Audit trail</h2>
+                <p class="section-intro">Dense ledger of batch transactions across all 4 vectors paired with simulated Razorpay-shaped test envelopes and Hinglish recovery messages.</p>
+            </div>
+        </div>
+        <div class="audit-container">
+            <table class="audit-table">
+                <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Merchant</th>
+                        <th>Amount</th>
+                        <th>Diagnosis & Vector</th>
+                        <th>Rule ID</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                        <th>Simulated Payload</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_001</td>
+            <td class="text-muted" style="white-space:nowrap;">Urban Company</td>
+            <td class="font-tabular font-bold">₹12,999</td>
+            <td>
+                <div>Dormant Checkout Drop-off (>48 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-STANDARD</td>
+            <td class="action-cell">send_recovery_link_standard</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_001: Status send_recovery_link_standard.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 1299900,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_001",
+    "customer": {
+      "name": "Urban Company",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_001",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_001",
+  "status": "created",
+  "amount_paid": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_002</td>
+            <td class="text-muted" style="white-space:nowrap;">Lenskart VIP</td>
+            <td class="font-tabular font-bold">₹1,499</td>
+            <td>
+                <div>Authorization Balance Deficit</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-FUNDS-DELAY-24H</td>
+            <td class="action-cell">auto_retry_delayed_24hr</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_002: Status auto_retry_delayed_24hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_002/retry",
+  "payload": {
+    "amount": 149900,
+    "currency": "INR",
+    "schedule": "delayed_24hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_002_368",
+  "entity": "payment",
+  "amount": 149900,
+  "currency": "INR",
+  "status": "failed",
+  "method": "card",
+  "captured": false,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_003</td>
+            <td class="text-muted" style="white-space:nowrap;">Zepto Depot</td>
+            <td class="font-tabular font-bold">₹45,000</td>
+            <td>
+                <div>B2B Net-30 Grace Period Expiration</div>
+                <div style="font-size:11px; color:var(--text-muted);">B2B Receivables & Invoices</div>
+            </td>
+            <td class="font-mono rule-cell">R-B2B-CHASER-30D</td>
+            <td class="action-cell">send_b2b_receivables_chaser</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Dear Zepto Depot Accounts Team, Invoice #txn_2026_003 for ₹45,000 is currently 30 days overdue. Please settle via instant Razorpay B2B portal: https://rzp.io/inv/26_003 or reply with your Promise-to-Pay (PTP) date.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/invoices/txn_2026_003/chase",
+  "payload": {
+    "amount": 4500000,
+    "dunning_cycle": 1,
+    "ptp_portal_enabled": true
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "inv_sim_26_003",
+  "entity": "b2b_invoice",
+  "short_url": "https://rzp.io/inv/26_003",
+  "status": "paid",
+  "amount_settled": 45000,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_004</td>
+            <td class="text-muted" style="white-space:nowrap;">Nykaa Merchant</td>
+            <td class="font-tabular font-bold">₹9,200</td>
+            <td>
+                <div>Gateway / NPCI Hop Latency Timeout</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-NET-IMMEDIATE</td>
+            <td class="action-cell">auto_retry_now</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_004: Status auto_retry_now.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_004/retry",
+  "payload": {
+    "amount": 920000,
+    "currency": "INR",
+    "schedule": "now"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_004_822",
+  "entity": "payment",
+  "amount": 920000,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_005</td>
+            <td class="text-muted" style="white-space:nowrap;">Flipkart Seller</td>
+            <td class="font-tabular font-bold">₹2,800</td>
+            <td>
+                <div>Gateway / NPCI Hop Latency Timeout</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-NET-IMMEDIATE</td>
+            <td class="action-cell">auto_retry_now</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_005: Status auto_retry_now.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_005/retry",
+  "payload": {
+    "amount": 280000,
+    "currency": "INR",
+    "schedule": "now"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_005_109",
+  "entity": "payment",
+  "amount": 280000,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_006</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹21,500</td>
+            <td>
+                <div>Authorization Balance Deficit</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-FUNDS-DELAY-24H</td>
+            <td class="action-cell">auto_retry_delayed_24hr</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_006: Status auto_retry_delayed_24hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_006/retry",
+  "payload": {
+    "amount": 2150000,
+    "currency": "INR",
+    "schedule": "delayed_24hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_006_807",
+  "entity": "payment",
+  "amount": 2150000,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_007</td>
+            <td class="text-muted" style="white-space:nowrap;">Urban Company</td>
+            <td class="font-tabular font-bold">₹68,000</td>
+            <td>
+                <div>Active Debtor Promise-to-Pay (PTP) Commitment</div>
+                <div style="font-size:11px; color:var(--text-muted);">B2B Receivables & Invoices</div>
+            </td>
+            <td class="font-mono rule-cell">R-B2B-PTP-PAUSE</td>
+            <td class="action-cell">pause_recovery_ptp_active</td>
+            <td><span class="badge badge-gold">PTP Active</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Automated notices paused. Debtor promised settlement by 2026-09-09. System monitoring escrow account.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "receivables_ledger",
+  "action": "apply_ptp_moratorium",
+  "payload": {
+    "invoice_id": "txn_2026_007",
+    "ptp_date": "2026-09-09",
+    "status": "active"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "moratorium_id": "ptp_mor_26_007",
+  "status": "dunning_suppressed",
+  "hold_until": "2026-09-09",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_008</td>
+            <td class="text-muted" style="white-space:nowrap;">Nykaa Merchant</td>
+            <td class="font-tabular font-bold">₹32,000</td>
+            <td>
+                <div>Card Testing / Rapid Velocity Bot Pattern</div>
+                <div style="font-size:11px; color:var(--text-muted);">Risk & Velocity Anomaly</div>
+            </td>
+            <td class="font-mono rule-cell">R-FRAUD-VELOCITY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_008: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_008",
+    "amount_inr": 32000,
+    "reason": "Risk mitigation rule: High-frequency velocity anomaly (>3 rapid failures) detected across single fingerprint. Potential card testing bot."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_008",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_009</td>
+            <td class="text-muted" style="white-space:nowrap;">Nykaa Merchant</td>
+            <td class="font-tabular font-bold">₹5,499</td>
+            <td>
+                <div>Pre-Authorization Drop-off (Within 24 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-NUDGE</td>
+            <td class="action-cell">send_hinglish_nudge_with_discount</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Namaste Nykaa Merchant ji! 🙏 Aapka ₹5,499 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! ⚡ Link: https://rzp.io/i/rec_26_009 (Expires in 2 hrs)</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 494910,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_009 (10% Hinglish VIP Nudge)",
+    "customer": {
+      "name": "Nykaa Merchant",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_009",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_009",
+  "status": "created",
+  "amount_paid": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_010</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹21,500</td>
+            <td>
+                <div>Authorization Balance Deficit</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_010: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_010",
+    "amount_inr": 21500,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_010",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_011</td>
+            <td class="text-muted" style="white-space:nowrap;">Lenskart VIP</td>
+            <td class="font-tabular font-bold">₹5,600</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-SOFT-DELAY-1H</td>
+            <td class="action-cell">auto_retry_delayed_1hr</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_011: Status auto_retry_delayed_1hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_011/retry",
+  "payload": {
+    "amount": 560000,
+    "currency": "INR",
+    "schedule": "delayed_1hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_011_954",
+  "entity": "payment",
+  "amount": 560000,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_012</td>
+            <td class="text-muted" style="white-space:nowrap;">Zepto Depot</td>
+            <td class="font-tabular font-bold">₹12,999</td>
+            <td>
+                <div>Pre-Authorization Drop-off (Within 24 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-NUDGE</td>
+            <td class="action-cell">send_hinglish_nudge_with_discount</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Namaste Zepto Depot ji! 🙏 Aapka ₹12,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! ⚡ Link: https://rzp.io/i/rec_26_012 (Expires in 2 hrs)</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 1169910,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_012 (10% Hinglish VIP Nudge)",
+    "customer": {
+      "name": "Zepto Depot",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_012",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_012",
+  "status": "paid",
+  "amount_paid": 12999,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_013</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹3,999</td>
+            <td>
+                <div>Pre-Authorization Drop-off (Within 24 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-NUDGE</td>
+            <td class="action-cell">send_hinglish_nudge_with_discount</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Namaste Swiggy Instamart ji! 🙏 Aapka ₹3,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! ⚡ Link: https://rzp.io/i/rec_26_013 (Expires in 2 hrs)</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 359910,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_013 (10% Hinglish VIP Nudge)",
+    "customer": {
+      "name": "Swiggy Instamart",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_013",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_013",
+  "status": "created",
+  "amount_paid": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_014</td>
+            <td class="text-muted" style="white-space:nowrap;">Flipkart Seller</td>
+            <td class="font-tabular font-bold">₹999</td>
+            <td>
+                <div>UPI AutoPay Mandate Token Expired</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-MANDATE-RENEW</td>
+            <td class="action-cell">send_mandate_renewal_link</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Alert: Aapka recurring subscription payment (₹999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_014</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/subscriptions/mandate_auth",
+  "payload": {
+    "customer_id": "cust__014",
+    "amount": 99900,
+    "auth_type": "upi_autopay"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "mandate_sim_26_014",
+  "entity": "subscription_mandate",
+  "short_url": "https://rzp.io/m/rec_26_014",
+  "status": "authenticated",
+  "mandate_token": "tok_upi_1685",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_015</td>
+            <td class="text-muted" style="white-space:nowrap;">Zepto Depot</td>
+            <td class="font-tabular font-bold">₹7,999</td>
+            <td>
+                <div>Pre-Authorization Drop-off (Within 24 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-NUDGE</td>
+            <td class="action-cell">send_hinglish_nudge_with_discount</td>
+            <td><span class="badge badge-rust-outline">Execution Failed</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Namaste Zepto Depot ji! 🙏 Aapka ₹7,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! ⚡ Link: https://rzp.io/i/rec_26_015 (Expires in 2 hrs)</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_015/retry",
+  "payload": {
+    "gateway_route": "secondary_hdfc",
+    "notes": {
+      "agent": "recovery_agent"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "error": {
+    "code": "GATEWAY_TIMEOUT",
+    "description": "504 Gateway Timeout: Bank switch ACK dropped after 30000ms. Ambiguous authorization state.",
+    "source": "gateway",
+    "step": "payment_retry",
+    "reason": "upstream_partner_timeout"
+  },
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_016</td>
+            <td class="text-muted" style="white-space:nowrap;">Reliance Retail</td>
+            <td class="font-tabular font-bold">₹4,999</td>
+            <td>
+                <div>Recurring Card Tokenization Desync</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-CARD-TOKEN-REAUTH</td>
+            <td class="action-cell">send_card_reauth_link</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_016: Status send_card_reauth_link.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/tokens/card/reauth",
+  "payload": {
+    "customer_id": "cust__016",
+    "auth_amount": 200,
+    "currency": "INR"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "tok_sim_26_016",
+  "entity": "card_token",
+  "status": "active",
+  "rbi_compliance": "tokenized_consent_verified",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_017</td>
+            <td class="text-muted" style="white-space:nowrap;">Lenskart VIP</td>
+            <td class="font-tabular font-bold">₹21,500</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-SOFT-DELAY-1H</td>
+            <td class="action-cell">auto_retry_delayed_1hr</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_017: Status auto_retry_delayed_1hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_017/retry",
+  "payload": {
+    "amount": 2150000,
+    "currency": "INR",
+    "schedule": "delayed_1hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_017_915",
+  "entity": "payment",
+  "amount": 2150000,
+  "currency": "INR",
+  "status": "failed",
+  "method": "card",
+  "captured": false,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_018</td>
+            <td class="text-muted" style="white-space:nowrap;">Zepto Depot</td>
+            <td class="font-tabular font-bold">₹5,600</td>
+            <td>
+                <div>Authorization Balance Deficit</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-FUNDS-DELAY-24H</td>
+            <td class="action-cell">auto_retry_delayed_24hr</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_018: Status auto_retry_delayed_24hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_018/retry",
+  "payload": {
+    "amount": 560000,
+    "currency": "INR",
+    "schedule": "delayed_24hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_018_140",
+  "entity": "payment",
+  "amount": 560000,
+  "currency": "INR",
+  "status": "failed",
+  "method": "card",
+  "captured": false,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_019</td>
+            <td class="text-muted" style="white-space:nowrap;">Flipkart Seller</td>
+            <td class="font-tabular font-bold">₹4,999</td>
+            <td>
+                <div>Recurring Card Tokenization Desync</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-CARD-TOKEN-REAUTH</td>
+            <td class="action-cell">send_card_reauth_link</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_019: Status send_card_reauth_link.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/tokens/card/reauth",
+  "payload": {
+    "customer_id": "cust__019",
+    "auth_amount": 200,
+    "currency": "INR"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "tok_sim_26_019",
+  "entity": "card_token",
+  "status": "pending_customer_auth",
+  "rbi_compliance": "tokenized_consent_verified",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_020</td>
+            <td class="text-muted" style="white-space:nowrap;">Urban Company</td>
+            <td class="font-tabular font-bold">₹1,499</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-SOFT-DELAY-1H</td>
+            <td class="action-cell">auto_retry_delayed_1hr</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_020: Status auto_retry_delayed_1hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_020/retry",
+  "payload": {
+    "amount": 149900,
+    "currency": "INR",
+    "schedule": "delayed_1hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_020_355",
+  "entity": "payment",
+  "amount": 149900,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_021</td>
+            <td class="text-muted" style="white-space:nowrap;">Reliance Retail</td>
+            <td class="font-tabular font-bold">₹5,499</td>
+            <td>
+                <div>Pre-Authorization Drop-off (Within 24 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-NUDGE</td>
+            <td class="action-cell">send_hinglish_nudge_with_discount</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Namaste Reliance Retail ji! 🙏 Aapka ₹5,499 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! ⚡ Link: https://rzp.io/i/rec_26_021 (Expires in 2 hrs)</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 494910,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_021 (10% Hinglish VIP Nudge)",
+    "customer": {
+      "name": "Reliance Retail",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_021",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_021",
+  "status": "created",
+  "amount_paid": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_022</td>
+            <td class="text-muted" style="white-space:nowrap;">Zomato Partner</td>
+            <td class="font-tabular font-bold">₹5,600</td>
+            <td>
+                <div>Gateway / NPCI Hop Latency Timeout</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_022: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_022",
+    "amount_inr": 5600,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_022",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_023</td>
+            <td class="text-muted" style="white-space:nowrap;">Zomato Partner</td>
+            <td class="font-tabular font-bold">₹32,000</td>
+            <td>
+                <div>Card Testing / Rapid Velocity Bot Pattern</div>
+                <div style="font-size:11px; color:var(--text-muted);">Risk & Velocity Anomaly</div>
+            </td>
+            <td class="font-mono rule-cell">R-FRAUD-VELOCITY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_023: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_023",
+    "amount_inr": 32000,
+    "reason": "Risk mitigation rule: High-frequency velocity anomaly (>3 rapid failures) detected across single fingerprint. Potential card testing bot."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_023",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_024</td>
+            <td class="text-muted" style="white-space:nowrap;">Flipkart Seller</td>
+            <td class="font-tabular font-bold">₹21,500</td>
+            <td>
+                <div>Authorization Balance Deficit</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_024: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_024",
+    "amount_inr": 21500,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_024",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_025</td>
+            <td class="text-muted" style="white-space:nowrap;">Zepto Depot</td>
+            <td class="font-tabular font-bold">₹4,999</td>
+            <td>
+                <div>UPI AutoPay Mandate Token Expired</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-MANDATE-RENEW</td>
+            <td class="action-cell">send_mandate_renewal_link</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Alert: Aapka recurring subscription payment (₹4,999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_025</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/subscriptions/mandate_auth",
+  "payload": {
+    "customer_id": "cust__025",
+    "amount": 499900,
+    "auth_type": "upi_autopay"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "mandate_sim_26_025",
+  "entity": "subscription_mandate",
+  "short_url": "https://rzp.io/m/rec_26_025",
+  "status": "authenticated",
+  "mandate_token": "tok_upi_7658",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_026</td>
+            <td class="text-muted" style="white-space:nowrap;">Nykaa Merchant</td>
+            <td class="font-tabular font-bold">₹8,900</td>
+            <td>
+                <div>Terminal Card Restriction / Fraud Blacklist</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-HARD-DECLINE</td>
+            <td class="action-cell">do_not_retry_flag_unrecoverable</td>
+            <td><span class="badge badge-grey">Unrecoverable</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_026: Status do_not_retry_flag_unrecoverable.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "risk_engine",
+  "action": "suppress_retries",
+  "payload": {
+    "transaction_id": "txn_2026_026",
+    "category": "hard_decline_block"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "suppression_id": "sup_26_026",
+  "status": "permanently_halted",
+  "network_compliance": "visa_mastercard_mandate_enforced",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_027</td>
+            <td class="text-muted" style="white-space:nowrap;">Urban Company</td>
+            <td class="font-tabular font-bold">₹14,800</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_027: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_027",
+    "amount_inr": 14800,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_027",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_028</td>
+            <td class="text-muted" style="white-space:nowrap;">Urban Company</td>
+            <td class="font-tabular font-bold">₹999</td>
+            <td>
+                <div>UPI AutoPay Mandate Token Expired</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-MANDATE-RENEW</td>
+            <td class="action-cell">send_mandate_renewal_link</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Alert: Aapka recurring subscription payment (₹999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_028</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/subscriptions/mandate_auth",
+  "payload": {
+    "customer_id": "cust__028",
+    "amount": 99900,
+    "auth_type": "upi_autopay"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "mandate_sim_26_028",
+  "entity": "subscription_mandate",
+  "short_url": "https://rzp.io/m/rec_26_028",
+  "status": "issued",
+  "mandate_token": null,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_029</td>
+            <td class="text-muted" style="white-space:nowrap;">Reliance Retail</td>
+            <td class="font-tabular font-bold">₹8,900</td>
+            <td>
+                <div>Terminal Card Restriction / Fraud Blacklist</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-HARD-DECLINE</td>
+            <td class="action-cell">do_not_retry_flag_unrecoverable</td>
+            <td><span class="badge badge-grey">Unrecoverable</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_029: Status do_not_retry_flag_unrecoverable.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "risk_engine",
+  "action": "suppress_retries",
+  "payload": {
+    "transaction_id": "txn_2026_029",
+    "category": "hard_decline_block"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "suppression_id": "sup_26_029",
+  "status": "permanently_halted",
+  "network_compliance": "visa_mastercard_mandate_enforced",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_030</td>
+            <td class="text-muted" style="white-space:nowrap;">Nykaa Merchant</td>
+            <td class="font-tabular font-bold">₹28,500</td>
+            <td>
+                <div>B2B Net-30 Grace Period Expiration</div>
+                <div style="font-size:11px; color:var(--text-muted);">B2B Receivables & Invoices</div>
+            </td>
+            <td class="font-mono rule-cell">R-B2B-CHASER-30D</td>
+            <td class="action-cell">send_b2b_receivables_chaser</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Dear Nykaa Merchant Accounts Team, Invoice #txn_2026_030 for ₹28,500 is currently 30 days overdue. Please settle via instant Razorpay B2B portal: https://rzp.io/inv/26_030 or reply with your Promise-to-Pay (PTP) date.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/invoices/txn_2026_030/chase",
+  "payload": {
+    "amount": 2850000,
+    "dunning_cycle": 1,
+    "ptp_portal_enabled": true
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "inv_sim_26_030",
+  "entity": "b2b_invoice",
+  "short_url": "https://rzp.io/inv/26_030",
+  "status": "dispatched_awaiting_remittance",
+  "amount_settled": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_031</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹14,800</td>
+            <td>
+                <div>Authorization Balance Deficit</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-FUNDS-DELAY-24H</td>
+            <td class="action-cell">auto_retry_delayed_24hr</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_031: Status auto_retry_delayed_24hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_031/retry",
+  "payload": {
+    "amount": 1480000,
+    "currency": "INR",
+    "schedule": "delayed_24hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_031_342",
+  "entity": "payment",
+  "amount": 1480000,
+  "currency": "INR",
+  "status": "failed",
+  "method": "card",
+  "captured": false,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_032</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹8,900</td>
+            <td>
+                <div>Terminal Card Restriction / Fraud Blacklist</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_032: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_032",
+    "amount_inr": 8900,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_032",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_033</td>
+            <td class="text-muted" style="white-space:nowrap;">Nykaa Merchant</td>
+            <td class="font-tabular font-bold">₹3,999</td>
+            <td>
+                <div>Dormant Checkout Drop-off (>48 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-STANDARD</td>
+            <td class="action-cell">send_recovery_link_standard</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_033: Status send_recovery_link_standard.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 399900,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_033",
+    "customer": {
+      "name": "Nykaa Merchant",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_033",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_033",
+  "status": "created",
+  "amount_paid": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_034</td>
+            <td class="text-muted" style="white-space:nowrap;">Zomato Partner</td>
+            <td class="font-tabular font-bold">₹24,000</td>
+            <td>
+                <div>Terminal Card Restriction / Fraud Blacklist</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_034: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_034",
+    "amount_inr": 24000,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_034",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_035</td>
+            <td class="text-muted" style="white-space:nowrap;">Urban Company</td>
+            <td class="font-tabular font-bold">₹4,999</td>
+            <td>
+                <div>Recurring Card Tokenization Desync</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-CARD-TOKEN-REAUTH</td>
+            <td class="action-cell">send_card_reauth_link</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_035: Status send_card_reauth_link.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/tokens/card/reauth",
+  "payload": {
+    "customer_id": "cust__035",
+    "auth_amount": 200,
+    "currency": "INR"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "tok_sim_26_035",
+  "entity": "card_token",
+  "status": "pending_customer_auth",
+  "rbi_compliance": "tokenized_consent_verified",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_036</td>
+            <td class="text-muted" style="white-space:nowrap;">Zepto Depot</td>
+            <td class="font-tabular font-bold">₹2,800</td>
+            <td>
+                <div>Gateway / NPCI Hop Latency Timeout</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_036: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_036",
+    "amount_inr": 2800,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_036",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_037</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹5,499</td>
+            <td>
+                <div>Pre-Authorization Drop-off (Within 24 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-NUDGE</td>
+            <td class="action-cell">send_hinglish_nudge_with_discount</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Namaste Swiggy Instamart ji! 🙏 Aapka ₹5,499 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! ⚡ Link: https://rzp.io/i/rec_26_037 (Expires in 2 hrs)</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 494910,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_037 (10% Hinglish VIP Nudge)",
+    "customer": {
+      "name": "Swiggy Instamart",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_037",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_037",
+  "status": "created",
+  "amount_paid": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_038</td>
+            <td class="text-muted" style="white-space:nowrap;">Reliance Retail</td>
+            <td class="font-tabular font-bold">₹999</td>
+            <td>
+                <div>UPI AutoPay Mandate Token Expired</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-MANDATE-RENEW</td>
+            <td class="action-cell">send_mandate_renewal_link</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Alert: Aapka recurring subscription payment (₹999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_038</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/subscriptions/mandate_auth",
+  "payload": {
+    "customer_id": "cust__038",
+    "amount": 99900,
+    "auth_type": "upi_autopay"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "mandate_sim_26_038",
+  "entity": "subscription_mandate",
+  "short_url": "https://rzp.io/m/rec_26_038",
+  "status": "issued",
+  "mandate_token": null,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_039</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹3,999</td>
+            <td>
+                <div>Pre-Authorization Drop-off (Within 24 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-NUDGE</td>
+            <td class="action-cell">send_hinglish_nudge_with_discount</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Namaste Swiggy Instamart ji! 🙏 Aapka ₹3,999 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! ⚡ Link: https://rzp.io/i/rec_26_039 (Expires in 2 hrs)</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 359910,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_039 (10% Hinglish VIP Nudge)",
+    "customer": {
+      "name": "Swiggy Instamart",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_039",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_039",
+  "status": "paid",
+  "amount_paid": 3999,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_040</td>
+            <td class="text-muted" style="white-space:nowrap;">Flipkart Seller</td>
+            <td class="font-tabular font-bold">₹95,000</td>
+            <td>
+                <div>B2B Net-30 Grace Period Expiration</div>
+                <div style="font-size:11px; color:var(--text-muted);">B2B Receivables & Invoices</div>
+            </td>
+            <td class="font-mono rule-cell">R-B2B-CHASER-30D</td>
+            <td class="action-cell">send_b2b_receivables_chaser</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Dear Flipkart Seller Accounts Team, Invoice #txn_2026_040 for ₹95,000 is currently 30 days overdue. Please settle via instant Razorpay B2B portal: https://rzp.io/inv/26_040 or reply with your Promise-to-Pay (PTP) date.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/invoices/txn_2026_040/chase",
+  "payload": {
+    "amount": 9500000,
+    "dunning_cycle": 1,
+    "ptp_portal_enabled": true
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "inv_sim_26_040",
+  "entity": "b2b_invoice",
+  "short_url": "https://rzp.io/inv/26_040",
+  "status": "dispatched_awaiting_remittance",
+  "amount_settled": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_041</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹1,499</td>
+            <td>
+                <div>Gateway / NPCI Hop Latency Timeout</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_041: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_041",
+    "amount_inr": 1499,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_041",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_042</td>
+            <td class="text-muted" style="white-space:nowrap;">Urban Company</td>
+            <td class="font-tabular font-bold">₹4,999</td>
+            <td>
+                <div>UPI AutoPay Mandate Token Expired</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_042: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_042",
+    "amount_inr": 4999,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_042",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_043</td>
+            <td class="text-muted" style="white-space:nowrap;">Reliance Retail</td>
+            <td class="font-tabular font-bold">₹45,000</td>
+            <td>
+                <div>Chronic Delinquency (>60 Days Past Due)</div>
+                <div style="font-size:11px; color:var(--text-muted);">B2B Receivables & Invoices</div>
+            </td>
+            <td class="font-mono rule-cell">R-B2B-LEGAL-ESCALATE</td>
+            <td class="action-cell">escalate_to_finance_collections</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_043: Status escalate_to_finance_collections.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "finance_legal_ops",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_043",
+    "amount_inr": 45000,
+    "reason": "Chronic delinquency (>60 days past due). Dunning sequence exhausted; escalated to Commercial Collections & Finance Legal Ops."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_043",
+  "queue": "commercial_collections_tier1",
+  "status": "assigned_specialist",
+  "sla_hours": 24,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_044</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹5,600</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-SOFT-DELAY-1H</td>
+            <td class="action-cell">auto_retry_delayed_1hr</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_044: Status auto_retry_delayed_1hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_044/retry",
+  "payload": {
+    "amount": 560000,
+    "currency": "INR",
+    "schedule": "delayed_1hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_044_521",
+  "entity": "payment",
+  "amount": 560000,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_045</td>
+            <td class="text-muted" style="white-space:nowrap;">Zomato Partner</td>
+            <td class="font-tabular font-bold">₹8,900</td>
+            <td>
+                <div>Terminal Card Restriction / Fraud Blacklist</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-HARD-DECLINE</td>
+            <td class="action-cell">do_not_retry_flag_unrecoverable</td>
+            <td><span class="badge badge-grey">Unrecoverable</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_045: Status do_not_retry_flag_unrecoverable.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "risk_engine",
+  "action": "suppress_retries",
+  "payload": {
+    "transaction_id": "txn_2026_045",
+    "category": "hard_decline_block"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "suppression_id": "sup_26_045",
+  "status": "permanently_halted",
+  "network_compliance": "visa_mastercard_mandate_enforced",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_046</td>
+            <td class="text-muted" style="white-space:nowrap;">Zepto Depot</td>
+            <td class="font-tabular font-bold">₹2,499</td>
+            <td>
+                <div>Dormant Checkout Drop-off (>48 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-STANDARD</td>
+            <td class="action-cell">send_recovery_link_standard</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_046: Status send_recovery_link_standard.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 249900,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_046",
+    "customer": {
+      "name": "Zepto Depot",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_046",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_046",
+  "status": "created",
+  "amount_paid": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_047</td>
+            <td class="text-muted" style="white-space:nowrap;">Reliance Retail</td>
+            <td class="font-tabular font-bold">₹14,800</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-SOFT-DELAY-1H</td>
+            <td class="action-cell">auto_retry_delayed_1hr</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_047: Status auto_retry_delayed_1hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_047/retry",
+  "payload": {
+    "amount": 1480000,
+    "currency": "INR",
+    "schedule": "delayed_1hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_047_930",
+  "entity": "payment",
+  "amount": 1480000,
+  "currency": "INR",
+  "status": "failed",
+  "method": "card",
+  "captured": false,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_048</td>
+            <td class="text-muted" style="white-space:nowrap;">Nykaa Merchant</td>
+            <td class="font-tabular font-bold">₹2,499</td>
+            <td>
+                <div>Pre-Authorization Drop-off (Within 24 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-NUDGE</td>
+            <td class="action-cell">send_hinglish_nudge_with_discount</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Namaste Nykaa Merchant ji! 🙏 Aapka ₹2,499 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! ⚡ Link: https://rzp.io/i/rec_26_048 (Expires in 2 hrs)</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 224910,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_048 (10% Hinglish VIP Nudge)",
+    "customer": {
+      "name": "Nykaa Merchant",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_048",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_048",
+  "status": "paid",
+  "amount_paid": 2499,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_049</td>
+            <td class="text-muted" style="white-space:nowrap;">Urban Company</td>
+            <td class="font-tabular font-bold">₹45,000</td>
+            <td>
+                <div>B2B Net-30 Grace Period Expiration</div>
+                <div style="font-size:11px; color:var(--text-muted);">B2B Receivables & Invoices</div>
+            </td>
+            <td class="font-mono rule-cell">R-B2B-CHASER-30D</td>
+            <td class="action-cell">send_b2b_receivables_chaser</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Dear Urban Company Accounts Team, Invoice #txn_2026_049 for ₹45,000 is currently 30 days overdue. Please settle via instant Razorpay B2B portal: https://rzp.io/inv/26_049 or reply with your Promise-to-Pay (PTP) date.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/invoices/txn_2026_049/chase",
+  "payload": {
+    "amount": 4500000,
+    "dunning_cycle": 1,
+    "ptp_portal_enabled": true
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "inv_sim_26_049",
+  "entity": "b2b_invoice",
+  "short_url": "https://rzp.io/inv/26_049",
+  "status": "paid",
+  "amount_settled": 45000,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_050</td>
+            <td class="text-muted" style="white-space:nowrap;">Swiggy Instamart</td>
+            <td class="font-tabular font-bold">₹4,999</td>
+            <td>
+                <div>UPI AutoPay Mandate Token Expired</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-MANDATE-RENEW</td>
+            <td class="action-cell">send_mandate_renewal_link</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Alert: Aapka recurring subscription payment (₹4,999) mandate expire hone ki wajah se pause ho gaya hai. Service bina rukawat continue rakhne ke liye yahan se 1-click me re-authorize karein: https://rzp.io/m/rec_26_050</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/subscriptions/mandate_auth",
+  "payload": {
+    "customer_id": "cust__050",
+    "amount": 499900,
+    "auth_type": "upi_autopay"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "mandate_sim_26_050",
+  "entity": "subscription_mandate",
+  "short_url": "https://rzp.io/m/rec_26_050",
+  "status": "issued",
+  "mandate_token": null,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_051</td>
+            <td class="text-muted" style="white-space:nowrap;">Zomato Partner</td>
+            <td class="font-tabular font-bold">₹1,499</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-SOFT-DELAY-1H</td>
+            <td class="action-cell">auto_retry_delayed_1hr</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_051: Status auto_retry_delayed_1hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_051/retry",
+  "payload": {
+    "amount": 149900,
+    "currency": "INR",
+    "schedule": "delayed_1hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_051_139",
+  "entity": "payment",
+  "amount": 149900,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_052</td>
+            <td class="text-muted" style="white-space:nowrap;">Lenskart VIP</td>
+            <td class="font-tabular font-bold">₹142,000</td>
+            <td>
+                <div>Active Debtor Promise-to-Pay (PTP) Commitment</div>
+                <div style="font-size:11px; color:var(--text-muted);">B2B Receivables & Invoices</div>
+            </td>
+            <td class="font-mono rule-cell">R-B2B-PTP-PAUSE</td>
+            <td class="action-cell">pause_recovery_ptp_active</td>
+            <td><span class="badge badge-gold">PTP Active</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Automated notices paused. Debtor promised settlement by 2026-09-09. System monitoring escrow account.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "receivables_ledger",
+  "action": "apply_ptp_moratorium",
+  "payload": {
+    "invoice_id": "txn_2026_052",
+    "ptp_date": "2026-09-09",
+    "status": "active"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "moratorium_id": "ptp_mor_26_052",
+  "status": "dunning_suppressed",
+  "hold_until": "2026-09-09",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_053</td>
+            <td class="text-muted" style="white-space:nowrap;">Nykaa Merchant</td>
+            <td class="font-tabular font-bold">₹5,600</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-SOFT-DELAY-1H</td>
+            <td class="action-cell">auto_retry_delayed_1hr</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_053: Status auto_retry_delayed_1hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_053/retry",
+  "payload": {
+    "amount": 560000,
+    "currency": "INR",
+    "schedule": "delayed_1hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_053_327",
+  "entity": "payment",
+  "amount": 560000,
+  "currency": "INR",
+  "status": "failed",
+  "method": "card",
+  "captured": false,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_054</td>
+            <td class="text-muted" style="white-space:nowrap;">Lenskart VIP</td>
+            <td class="font-tabular font-bold">₹2,800</td>
+            <td>
+                <div>Gateway / NPCI Hop Latency Timeout</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td class="action-cell">escalate_to_human_review</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_054: Status escalate_to_human_review.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "system_channel": "merchant_ops_queue",
+  "action": "open_recovery_dossier",
+  "payload": {
+    "transaction_id": "txn_2026_054",
+    "amount_inr": 2800,
+    "reason": "Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees."
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "ticket_id": "esc_26_054",
+  "queue": "merchant_ops_priority",
+  "status": "assigned_specialist",
+  "sla_hours": 2,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_055</td>
+            <td class="text-muted" style="white-space:nowrap;">Lenskart VIP</td>
+            <td class="font-tabular font-bold">₹21,500</td>
+            <td>
+                <div>Gateway / NPCI Hop Latency Timeout</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-NET-IMMEDIATE</td>
+            <td class="action-cell">auto_retry_now</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_055: Status auto_retry_now.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_055/retry",
+  "payload": {
+    "amount": 2150000,
+    "currency": "INR",
+    "schedule": "now"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_055_571",
+  "entity": "payment",
+  "amount": 2150000,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_056</td>
+            <td class="text-muted" style="white-space:nowrap;">Zomato Partner</td>
+            <td class="font-tabular font-bold">₹1,499</td>
+            <td>
+                <div>Gateway / NPCI Hop Latency Timeout</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-NET-IMMEDIATE</td>
+            <td class="action-cell">auto_retry_now</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_056: Status auto_retry_now.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_056/retry",
+  "payload": {
+    "amount": 149900,
+    "currency": "INR",
+    "schedule": "now"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_056_940",
+  "entity": "payment",
+  "amount": 149900,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_057</td>
+            <td class="text-muted" style="white-space:nowrap;">Lenskart VIP</td>
+            <td class="font-tabular font-bold">₹8,999</td>
+            <td>
+                <div>Recurring Card Tokenization Desync</div>
+                <div style="font-size:11px; color:var(--text-muted);">Failed Subscriptions</div>
+            </td>
+            <td class="font-mono rule-cell">R-CARD-TOKEN-REAUTH</td>
+            <td class="action-cell">send_card_reauth_link</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_057: Status send_card_reauth_link.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/tokens/card/reauth",
+  "payload": {
+    "customer_id": "cust__057",
+    "auth_amount": 200,
+    "currency": "INR"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "tok_sim_26_057",
+  "entity": "card_token",
+  "status": "pending_customer_auth",
+  "rbi_compliance": "tokenized_consent_verified",
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_058</td>
+            <td class="text-muted" style="white-space:nowrap;">Lenskart VIP</td>
+            <td class="font-tabular font-bold">₹2,800</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-SOFT-DELAY-1H</td>
+            <td class="action-cell">auto_retry_delayed_1hr</td>
+            <td><span class="badge badge-sage">Recovered</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_058: Status auto_retry_delayed_1hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_058/retry",
+  "payload": {
+    "amount": 280000,
+    "currency": "INR",
+    "schedule": "delayed_1hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_058_124",
+  "entity": "payment",
+  "amount": 280000,
+  "currency": "INR",
+  "status": "captured",
+  "method": "card",
+  "captured": true,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_059</td>
+            <td class="text-muted" style="white-space:nowrap;">Zomato Partner</td>
+            <td class="font-tabular font-bold">₹9,200</td>
+            <td>
+                <div>Temporary Bank Network Flap / Switch Drop</div>
+                <div style="font-size:11px; color:var(--text-muted);">Payment Degradation</div>
+            </td>
+            <td class="font-mono rule-cell">R-SOFT-DELAY-1H</td>
+            <td class="action-cell">auto_retry_delayed_1hr</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_059: Status auto_retry_delayed_1hr.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payments/txn_2026_059/retry",
+  "payload": {
+    "amount": 920000,
+    "currency": "INR",
+    "schedule": "delayed_1hr"
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "pay_sim_26_059_508",
+  "entity": "payment",
+  "amount": 920000,
+  "currency": "INR",
+  "status": "failed",
+  "method": "card",
+  "captured": false,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_060</td>
+            <td class="text-muted" style="white-space:nowrap;">Reliance Retail</td>
+            <td class="font-tabular font-bold">₹7,999</td>
+            <td>
+                <div>Dormant Checkout Drop-off (>48 Hours)</div>
+                <div style="font-size:11px; color:var(--text-muted);">Checkout Drop-off</div>
+            </td>
+            <td class="font-mono rule-cell">R-ABANDON-STANDARD</td>
+            <td class="action-cell">send_recovery_link_standard</td>
+            <td><span class="badge badge-muted">Unsettled</span></td>
+            <td>
+                <details class="json-details">
+                    <summary>View Payload & Intervention</summary>
+                    <div class="json-box">
+                        <div class="json-label">Simulated WhatsApp / Script</div>
+                        <div style="font-size:11px; color:#E2DFD2; margin-bottom:6px;">Payment update for txn_2026_060: Status send_recovery_link_standard.</div>
+                        <div class="json-label">Simulated Request</div>
+                        <pre><code>{
+  "method": "POST",
+  "endpoint": "/v1/payment_links",
+  "payload": {
+    "amount": 799900,
+    "currency": "INR",
+    "description": "Checkout recovery for txn_2026_060",
+    "customer": {
+      "name": "Reliance Retail",
+      "contact": "+919876543210"
+    }
+  }
+}</code></pre>
+                        <div class="json-label" style="margin-top: 8px;">Simulated Response (Test Mode)</div>
+                        <pre><code>{
+  "id": "plink_sim_26_060",
+  "entity": "payment_link",
+  "short_url": "https://rzp.io/i/rec_26_060",
+  "status": "created",
+  "amount_paid": 0,
+  "_audit_note": "SIMULATED (test-mode shape)"
+}</code></pre>
+                    </div>
+                </details>
+            </td>
+        </tr>
+        
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section>
+        <div class="section-header">
+            <div>
+                <h2>The honest list</h2>
+                <p class="section-intro">These couldn't be recovered automatically, and the system correctly stopped rather than guess.</p>
+            </div>
+        </div>
+
+        <div class="graceful-callout">
+            <div class="graceful-callout-title">Handled gracefully: Upstream gateway timeout on txn_2026_015</div>
+            <p>
+                During automated retry execution, transaction <code class="code-inline">txn_2026_015</code> encountered an upstream banking switch 504 Gateway Timeout. Rather than blindly retrying and risking duplicate debits or card association rate-limits, the Recovery Agent immediately halted execution, quarantined the record, logged an audit dossier, and scheduled an asynchronous reconciliation check.
+            </p>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Exposure</th>
+                        <th>Status</th>
+                        <th>Rule Triggered</th>
+                        <th>Audit Rationale</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_008</td>
+            <td class="font-tabular" style="color: var(--rust);">₹32,000</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-FRAUD-VELOCITY</td>
+            <td>Risk mitigation rule: High-frequency velocity anomaly (>3 rapid failures) detected across single fingerprint. Potential card testing bot.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_010</td>
+            <td class="font-tabular" style="color: var(--rust);">₹21,500</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_015</td>
+            <td class="font-tabular" style="color: var(--rust);">₹7,999</td>
+            <td><span class="badge badge-rust-outline">Execution Failed</span></td>
+            <td class="font-mono rule-cell">R-ABANDON-NUDGE</td>
+            <td>Caught 504 Gateway Timeout. Policy stopping rule strictly enforced: blind re-attempts suppressed to prevent duplicate customer debits. Quarantined for async reconciliation.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_022</td>
+            <td class="font-tabular" style="color: var(--rust);">₹5,600</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_023</td>
+            <td class="font-tabular" style="color: var(--rust);">₹32,000</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-FRAUD-VELOCITY</td>
+            <td>Risk mitigation rule: High-frequency velocity anomaly (>3 rapid failures) detected across single fingerprint. Potential card testing bot.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_024</td>
+            <td class="font-tabular" style="color: var(--rust);">₹21,500</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_026</td>
+            <td class="font-tabular" style="color: var(--rust);">₹8,900</td>
+            <td><span class="badge badge-grey">Unrecoverable</span></td>
+            <td class="font-mono rule-cell">R-STOP-HARD-DECLINE</td>
+            <td>Compliance stopping rule: Card reported lost, stolen, or blocked by issuer. Visa/Mastercard network mandates zero automated re-attempts.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_027</td>
+            <td class="font-tabular" style="color: var(--rust);">₹14,800</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_029</td>
+            <td class="font-tabular" style="color: var(--rust);">₹8,900</td>
+            <td><span class="badge badge-grey">Unrecoverable</span></td>
+            <td class="font-mono rule-cell">R-STOP-HARD-DECLINE</td>
+            <td>Compliance stopping rule: Card reported lost, stolen, or blocked by issuer. Visa/Mastercard network mandates zero automated re-attempts.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_032</td>
+            <td class="font-tabular" style="color: var(--rust);">₹8,900</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_034</td>
+            <td class="font-tabular" style="color: var(--rust);">₹24,000</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_036</td>
+            <td class="font-tabular" style="color: var(--rust);">₹2,800</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_041</td>
+            <td class="font-tabular" style="color: var(--rust);">₹1,499</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_042</td>
+            <td class="font-tabular" style="color: var(--rust);">₹4,999</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_043</td>
+            <td class="font-tabular" style="color: var(--rust);">₹45,000</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-B2B-LEGAL-ESCALATE</td>
+            <td>Chronic delinquency (>60 days past due). Dunning sequence exhausted; escalated to Commercial Collections & Finance Legal Ops.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_045</td>
+            <td class="font-tabular" style="color: var(--rust);">₹8,900</td>
+            <td><span class="badge badge-grey">Unrecoverable</span></td>
+            <td class="font-mono rule-cell">R-STOP-HARD-DECLINE</td>
+            <td>Compliance stopping rule: Card reported lost, stolen, or blocked by issuer. Visa/Mastercard network mandates zero automated re-attempts.</td>
+        </tr>
+        
+
+        <tr>
+            <td class="font-mono txn-cell">txn_2026_054</td>
+            <td class="font-tabular" style="color: var(--rust);">₹2,800</td>
+            <td><span class="badge badge-rust">Escalated</span></td>
+            <td class="font-mono rule-cell">R-STOP-MAX-RETRY</td>
+            <td>Anti-fatigue & network fee cap: 2 prior automated payment retries already executed. Further auto-retries cause cardholder complaints and incur scheme penalty fees.</td>
+        </tr>
+        
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <footer class="footer-note">
+        <div>Razorpay Buildathon 2026 · AI Revenue Recovery Track · Live Prototype</div>
+        <div>All payloads marked <span class="code-inline">SIMULATED (test-mode shape)</span></div>
+    </footer>
+</div>
+
+<script>
+    (function() {
+        const targetValue = 193991;
+        const duration = 1200;
+        const counterEl = document.getElementById('heroRecovered');
+        let startTime = null;
+
+        function easeOutExpo(t) {
+            return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+        }
+
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = easeOutExpo(progress);
+            const currentValue = Math.floor(easedProgress * targetValue);
+
+            counterEl.textContent = '₹' + currentValue.toLocaleString('en-IN');
+
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            } else {
+                counterEl.textContent = '₹' + targetValue.toLocaleString('en-IN');
+            }
+        }
+
+        window.requestAnimationFrame(step);
+    })();
+</script>
+
+</body>
+</html>

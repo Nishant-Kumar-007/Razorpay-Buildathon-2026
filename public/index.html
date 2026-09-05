@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recovery Agent — Multi-Vector Revenue Recovery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- Minimal Particle Trail Canvas -->
+<canvas id="trailCanvas"></canvas>
+
+<!-- SVG Gradients for Circular Gauge -->
+<svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+    <defs>
+        <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#10B981" />
+            <stop offset="60%" stop-color="#34D399" />
+            <stop offset="100%" stop-color="#06B6D4" />
+        </linearGradient>
+    </defs>
+</svg>
+
+<div class="report-wrapper">
+
+    <!-- Header -->
+    <header class="report-header">
+        <div class="report-brand">
+            <div class="brand-badge">
+                <div class="pulse-dot"></div>
+                Autonomous Agent Active
+            </div>
+            <div class="brand-title">Recovery Agent — Multi-Vector Revenue Recovery</div>
+            <div class="brand-meta">Autonomous Closed-Loop Financial Recovery System</div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-secondary" id="btnScrollSandbox" onclick="document.getElementById('secSandbox').scrollIntoView({behavior:'smooth'})">Open Simulator</button>
+            <button class="btn-primary" id="btnRunBatch">Run Live Batch</button>
+        </div>
+    </header>
+
+    <!-- 1. HERO SECTION -->
+    <section class="hero-section">
+        <div class="hero-container">
+            <!-- Main Hero Card with Crazy Holographic Numbers -->
+            <div class="tilt-card hero-main-card" id="heroMainCard">
+                <div class="hero-badge-strip">
+                    <div class="crazy-badge">⚡ AUTONOMOUS REVENUE HARVESTER</div>
+                    <div class="crazy-badge" style="background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.5); color:#6EE7B7;">✓ 68.3% RECOVERY RATIO</div>
+                </div>
+                <div class="hero-label">Total Revenue Recovered Across Batch</div>
+                <div class="hero-recovered" id="heroRecovered">₹0</div>
+                <div class="hero-subtext" id="heroSubtext">
+                    Calculating multi-vector revenue stream...
+                </div>
+            </div>
+
+            <!-- Recovery Efficiency Circular Gauge -->
+            <div class="tilt-card hero-chart-card" id="heroGaugeCard">
+                <div class="chart-title">
+                    <span>Recovery Efficiency</span>
+                    <span class="badge badge-sage" id="badgeTotalWon">Dominant Ratio</span>
+                </div>
+                <div class="gauge-wrapper">
+                    <svg class="gauge-svg" viewBox="0 0 140 140">
+                        <circle class="gauge-bg" cx="70" cy="70" r="58"></circle>
+                        <circle class="gauge-progress" id="gaugeCircle" cx="70" cy="70" r="58"></circle>
+                    </svg>
+                    <div class="gauge-text-group">
+                        <div class="gauge-rate" id="gaugeRateText">68.3%</div>
+                        <div class="gauge-label">Dominant Win Rate</div>
+                        <div style="font-size: 11px; color: var(--emerald); font-weight: 700;">▲ 68.3% Capital Won</div>
+                    </div>
+                </div>
+                <div style="font-size: 12px; color: var(--desert-sand-muted); border-top: 1px solid var(--desert-border); padding-top: 10px;">
+                    Deterministic bounded interventions recovering majority of failed capital.
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 Vector Overview Cards with Crazy Numbers -->
+        <div class="hero-vectors-strip" id="heroVectorsStrip">
+            <!-- Populated via app.js -->
+        </div>
+    </section>
+
+    <!-- 2. DEDICATED ALWAYS-VISIBLE INDIAN VOICE & WHATSAPP INTERVENTION SHOWCASE -->
+    <section>
+        <div class="tilt-card voice-showcase-card">
+            <div class="voice-showcase-header">
+                <div>
+                    <div style="font-size:11px; font-weight:700; color:var(--desert-gold); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;">Multi-Channel Customer Interventions</div>
+                    <h3 style="font-family:var(--font-display); font-size:20px; font-weight:700; color:var(--desert-sand);">Live Indian Voice IVR & Hinglish WhatsApp Preview</h3>
+                </div>
+                <div class="audio-controls">
+                    <div class="wave-bars voice-wave-inactive" id="waveBarsVisual">
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                    </div>
+                    <button type="button" class="btn-audio" id="btnMainVoicePlay">
+                        🔊 Play Indian Voice Call (Hinglish IVR)
+                    </button>
+                </div>
+            </div>
+
+            <div class="vernacular-grid">
+                <div class="vernacular-card">
+                    <div class="vernacular-type">💬 Automated WhatsApp Nudge (Hinglish)</div>
+                    <div class="whatsapp-bubble" id="mainWhatsappPreview">
+                        Namaste Rahul ji! 🙏 Aapka ₹14,500 ka order cart me hold par hai. Abhi complete karein aur payein FLAT 10% instant savings! ⚡ Link: <a href="javascript:void(0)" class="sim-payment-link" onclick="openSimulatedCheckoutModal('rec_8912', 14500, 'Rahul Sharma')">https://rzp.io/i/rec_8912</a> (Expires in 2 hrs)
+                    </div>
+                </div>
+
+                <div class="vernacular-card">
+                    <div class="vernacular-type">📞 Outbound IVR Script (Indian Voice)</div>
+                    <div class="voice-bubble" id="mainVoicePreview">
+                        "Namaste! Yeh phone call aapke pending order ke baare me hai. Aapka 14,500 rupees ka cart ready hai. 1 dabaiye agar aap abhi 10% discount ke sath pay karna chahte hain, ya 2 dabaiye link WhatsApp par paane ke liye."
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. VISUAL CHARTS & RECOVERY FUNNEL -->
+    <section>
+        <div class="section-header">
+            <div>
+                <h2>Visual recovery analytics</h2>
+                <p class="section-intro">Comparison of capital won versus residual unrecovered deficit across all four revenue channels.</p>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <!-- Bar Comparison Chart: Green Won Dominates Red Deficit -->
+            <div class="tilt-card chart-card">
+                <div class="chart-title">
+                    <span>Vector Revenue Comparison</span>
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <div class="legend-dot-green"></div>
+                            <span style="color: var(--emerald);">Won (Recovered)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot-red"></div>
+                            <span style="color: var(--rust);">Deficit (Unrecovered)</span>
+                        </div>
+                    </div>
+                </div>
+                <canvas id="barChartCanvas"></canvas>
+            </div>
+
+            <!-- Recovery Funnel -->
+            <div class="tilt-card chart-card">
+                <div class="chart-title">
+                    <span>Autonomous Funnel</span>
+                    <span style="font-size: 11px; font-family: var(--font-mono); color: var(--emerald);">100% GATED</span>
+                </div>
+                <div class="funnel-container">
+                    <div class="funnel-step">
+                        <div class="funnel-step-name">
+                            <span class="funnel-step-badge">1</span>
+                            <span>At-Risk Revenue Detected</span>
+                        </div>
+                        <div class="funnel-step-val" id="funnelRisk" style="color: var(--rust);">₹1,145,679</div>
+                    </div>
+                    <div class="funnel-step">
+                        <div class="funnel-step-name">
+                            <span class="funnel-step-badge">2</span>
+                            <span>Deterministic Classifications</span>
+                        </div>
+                        <div class="funnel-step-val" id="funnelEvents" style="color: #60A5FA;">61 Events</div>
+                    </div>
+                    <div class="funnel-step">
+                        <div class="funnel-step-name">
+                            <span class="funnel-step-badge">3</span>
+                            <span>Gated Razorpay Interventions</span>
+                        </div>
+                        <div class="funnel-step-val" id="funnelActions" style="color: var(--gold);">47 Dispatched</div>
+                    </div>
+                    <div class="funnel-step">
+                        <div class="funnel-step-name">
+                            <span class="funnel-step-badge">4</span>
+                            <span>Recovered Capital Won</span>
+                        </div>
+                        <div class="funnel-step-val" id="funnelRecovered" style="color: var(--emerald);">₹782,585</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. INTERACTIVE SIMULATOR & SANDBOX -->
+    <section id="secSandbox">
+        <div class="section-header">
+            <div>
+                <h2>Interactive recovery simulator</h2>
+                <p class="section-intro">Test any custom failure scenario live. Choose a failure vector, adjust amounts, and observe the deterministic policy engine evaluate rules, dispatch payloads, and generate vernacular Hinglish interventions in real time.</p>
+            </div>
+        </div>
+
+        <div class="tilt-card sandbox-card">
+            <form id="sandboxForm" class="sandbox-form">
+                <div class="form-group" style="grid-column: span 2;">
+                    <label class="form-label" for="simFailureType">Revenue Vector & Failure Scenario</label>
+                    <select id="simFailureType" class="form-select">
+                        <optgroup label="Vector 1: Payment Degradation">
+                            <option value="issuer_decline_soft">Soft Decline — Bank Network Flap (Error 05/91)</option>
+                            <option value="network_timeout">Network Timeout — Gateway Latency Breach</option>
+                            <option value="insufficient_funds">Insufficient Funds — Balance Deficit (Error 51)</option>
+                            <option value="issuer_decline_hard">Hard Decline — Card Blocked / Fraud Blacklist</option>
+                        </optgroup>
+                        <optgroup label="Vector 2: Checkout Abandonment">
+                            <option value="checkout_abandoned_fresh" selected>Fresh Cart Drop-off (Within 24 Hours) + Hinglish Nudge</option>
+                            <option value="checkout_abandoned_aged">Aged Cart Drop-off (>48 Hours) Standard Link</option>
+                        </optgroup>
+                        <optgroup label="Vector 3: Failed Subscriptions">
+                            <option value="upi_mandate_expired">UPI AutoPay Mandate Token Expired (UMN Lap)</option>
+                            <option value="card_recurring_token_revoked">RBI CoF Recurring Card Token Desync (₹2 Reauth)</option>
+                        </optgroup>
+                        <optgroup label="Vector 4: B2B Receivables & Invoices">
+                            <option value="invoice_overdue_30d">B2B Net-30 Overdue Invoice + PTP Capture</option>
+                            <option value="invoice_overdue_60d_ptp_active">B2B Invoice with Active Promise-to-Pay (Moratorium)</option>
+                            <option value="invoice_overdue_90d_default">Chronic Delinquency (>60 Days) Legal Escalation</option>
+                        </optgroup>
+                        <optgroup label="Risk & Velocity Compliance">
+                            <option value="duplicate_suspicious_pattern">Card Velocity Testing Bot (>3 Rapid Fails)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="simAmount">Amount (₹)</label>
+                    <input type="number" id="simAmount" class="form-input" value="18500" min="100" max="500000">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="simRetryCount">Prior Retries Attempted</label>
+                    <select id="simRetryCount" class="form-select">
+                        <option value="0">0 prior attempts</option>
+                        <option value="1">1 prior attempt</option>
+                        <option value="2">2 prior attempts (Triggers Hard Stop)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="simCustomerName">Customer / Company</label>
+                    <input type="text" id="simCustomerName" class="form-input" value="Reliance Retail Partner">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="simSegment">Customer Tier</label>
+                    <select id="simSegment" class="form-select">
+                        <option value="SaaS Enterprise">SaaS Enterprise</option>
+                        <option value="D2C Brand">D2C Brand</option>
+                        <option value="High-Volume B2B">High-Volume B2B</option>
+                        <option value="SMB Merchant">SMB Merchant</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" id="btnSimulateSubmit" class="btn-primary" style="width: 100%; height: 42px;">⚡ Execute Recovery</button>
+                </div>
+            </form>
+
+            <!-- Output Panel -->
+            <div id="sandboxOutputPanel" class="sandbox-output-panel">
+                <div class="sandbox-output-header">
+                    <div>
+                        <span class="font-mono text-muted" id="resTxnId">txn_custom_001</span> · 
+                        <strong id="resDiagnosis">Pre-Authorization Drop-off</strong>
+                    </div>
+                    <div>
+                        <span id="resStatusBadge" class="badge badge-sage">Recovered</span>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                    <div>
+                        <div class="form-label">Policy Rule Triggered</div>
+                        <div class="font-mono" id="resRuleId" style="color: var(--gold); font-size: 13px; font-weight: 600;">R-ABANDON-NUDGE</div>
+                    </div>
+                    <div>
+                        <div class="form-label">Recovery Action Executed</div>
+                        <div class="font-mono" id="resAction" style="color: var(--text); font-size: 13px;">send_hinglish_nudge_with_discount</div>
+                    </div>
+                    <div>
+                        <div class="form-label">Boundary / Stopping Condition</div>
+                        <div style="font-size: 12px; color: var(--desert-sand-muted);" id="resStoppingRule">Single nudge policy; no follow-up spam allowed.</div>
+                    </div>
+                </div>
+
+                <!-- Output Vernacular Preview -->
+                <div class="vernacular-grid">
+                    <div class="vernacular-card">
+                        <div class="vernacular-type">💬 WhatsApp Recovery Message</div>
+                        <div class="whatsapp-bubble" id="resWhatsappCopy">
+                            Loading copy...
+                        </div>
+                    </div>
+
+                    <div class="vernacular-card">
+                        <div class="vernacular-type">📞 Voice Call Script (Indian Voice)</div>
+                        <div class="voice-bubble" id="resVoiceScript">
+                            Loading script...
+                        </div>
+                        <div class="audio-controls">
+                            <button type="button" class="btn-audio" id="btnSpeakVoice">🔊 Listen to Indian Voice Call</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Envelopes -->
+                <div style="margin-top: 16px;">
+                    <details class="json-details">
+                        <summary>Inspect API Payload</summary>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
+                            <div class="json-box" style="max-width: 100%;">
+                                <div class="json-label">Request Envelope</div>
+                                <pre><code id="resReqJson"></code></pre>
+                            </div>
+                            <div class="json-box" style="max-width: 100%;">
+                                <div class="json-label">Response Envelope</div>
+                                <pre><code id="resRespJson"></code></pre>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. THE POLICY TABLE -->
+    <section>
+        <div class="section-header">
+            <div>
+                <h2>The policy</h2>
+                <p class="section-intro">Every action below traces to one of these rules — nothing here is a black-box decision.</p>
+            </div>
+        </div>
+        <div class="tilt-card table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rule ID</th>
+                        <th>Condition</th>
+                        <th>Action</th>
+                        <th>Stopping rule</th>
+                    </tr>
+                </thead>
+                <tbody id="policyTableBody">
+                    <!-- Populated via app.js -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- 6. BREAKDOWN BY FAILURE VECTOR -->
+    <section>
+        <div class="section-header">
+            <div>
+                <h2>Breakdown by failure vector</h2>
+                <p class="section-intro">Capital recovered across all 4 revenue loss channels. Green glowing bars indicate recovered funds, while figures in gold denote net recovered capital.</p>
+            </div>
+        </div>
+        <div class="breakdown-list" id="breakdownList">
+            <!-- Populated via app.js -->
+        </div>
+    </section>
+
+    <!-- 7. AUDIT TRAIL -->
+    <section>
+        <div class="section-header">
+            <div>
+                <h2>Audit trail</h2>
+                <p class="section-intro">Live audit ledger of batch transactions across all 4 vectors. Filter by channel, search by merchant, or log Promise-to-Pay commitments.</p>
+            </div>
+        </div>
+
+        <div class="tab-filter-bar">
+            <button class="tab-btn active" data-vector="all">All Vectors</button>
+            <button class="tab-btn" data-vector="payment_failure">Payment Degradation</button>
+            <button class="tab-btn" data-vector="checkout_abandonment">Checkout Drop-off</button>
+            <button class="tab-btn" data-vector="subscription_failure">Failed Subscriptions</button>
+            <button class="tab-btn" data-vector="b2b_receivables">B2B Receivables & Invoices</button>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <input type="text" id="auditSearchInput" class="form-input" placeholder="Search by Transaction ID, Merchant, Diagnosis, or Rule..." style="width: 100%;">
+        </div>
+
+        <div class="tilt-card audit-container">
+            <table class="audit-table">
+                <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Merchant</th>
+                        <th>Amount</th>
+                        <th>Diagnosis & Vector</th>
+                        <th>Rule ID</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                        <th>API Envelope</th>
+                    </tr>
+                </thead>
+                <tbody id="auditTableBody">
+                    <!-- Populated via app.js -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
